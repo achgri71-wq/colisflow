@@ -9,7 +9,6 @@ import { useThemeEffect } from './hooks/useThemeEffect'
 import { useWakeLock } from './hooks/useWakeLock'
 import { useStore } from './store/useStore'
 import { isTypingTarget } from './lib/utils'
-import { DashboardPage } from './pages/Dashboard'
 
 const ScanPage = lazy(() => import('./pages/Scan').then((module) => ({ default: module.ScanPage })))
 const DistributorsPage = lazy(() =>
@@ -19,9 +18,6 @@ const DistributorDetailPage = lazy(() =>
   import('./pages/DistributorDetail').then((module) => ({
     default: module.DistributorDetailPage,
   })),
-)
-const ArchivePage = lazy(() =>
-  import('./pages/Archive').then((module) => ({ default: module.ArchivePage })),
 )
 const SearchPage = lazy(() =>
   import('./pages/Search').then((module) => ({ default: module.SearchPage })),
@@ -143,14 +139,14 @@ export function App() {
       <ScrollToTop />
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<Navigate to="/scan" replace />} />
           <Route path="scan" element={<ScanPage />} />
           <Route path="distributors" element={<DistributorsPage />} />
           <Route path="distributors/:id" element={<DistributorDetailPage />} />
-          <Route path="archive" element={<ArchivePage />} />
+          <Route path="archive" element={<Navigate to="/distributors" replace />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="dashboard" element={<Navigate to="/" replace />} />
+          <Route path="dashboard" element={<Navigate to="/scan" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

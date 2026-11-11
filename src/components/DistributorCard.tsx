@@ -15,7 +15,6 @@ import type { Distributor } from '../types'
 import type { DistributorStats } from '../lib/stats'
 import { cx, relativeTime } from '../lib/utils'
 import { Badge } from './ui'
-import { SplitBar } from './Charts'
 
 interface MenuItem {
   label: string
@@ -168,16 +167,10 @@ export function DistributorCard({
           <span>{parcelsLabel}</span>
         </div>
         <div className="dist-stat">
-          <strong>{stats.sendit}</strong>
-          <span>{t('common.sendit')}</span>
-        </div>
-        <div className="dist-stat">
           <strong>{stats.sessions}</strong>
           <span>{sessionsLabel}</span>
         </div>
       </div>
-
-      <SplitBar sendit={stats.sendit} standard={Math.max(0, stats.parcels - stats.sendit)} />
 
       <div className="dist-card-actions">
         <Link to={`/distributors/${distributor.id}`} className="btn btn-ghost btn-sm">

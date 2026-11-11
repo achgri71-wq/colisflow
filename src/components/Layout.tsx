@@ -1,9 +1,7 @@
 import { Suspense } from 'react'
 import { NavLink, Outlet, Link } from 'react-router-dom'
 import {
-  Archive,
   Boxes,
-  House,
   Languages,
   Monitor,
   Moon,
@@ -47,10 +45,8 @@ export function BrandMark({ size = 38 }: { size?: number }) {
 }
 
 const WORKSPACE_LINKS = [
-  { to: '/', label: 'nav.dashboard', icon: House, end: true },
   { to: '/scan', label: 'nav.scan', icon: ScanBarcode, end: false },
   { to: '/distributors', label: 'nav.distributors', icon: Boxes, end: false },
-  { to: '/archive', label: 'nav.archive', icon: Archive, end: false },
 ] as const
 
 const SYSTEM_LINKS = [
@@ -59,10 +55,8 @@ const SYSTEM_LINKS = [
 ] as const
 
 const MOBILE_LINKS = [
-  { to: '/', label: 'nav.dashboard', icon: House, end: true },
   { to: '/distributors', label: 'nav.distributors', icon: Boxes },
   { to: '/scan', label: 'nav.scan', icon: ScanBarcode, primary: true },
-  { to: '/search', label: 'nav.search', icon: Search },
   { to: '/settings', label: 'nav.settings', icon: Settings },
 ] as const
 
@@ -95,7 +89,7 @@ export function Layout() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link to="/" className="side-brand">
+        <Link to="/scan" className="side-brand">
           <BrandMark size={42} />
           <span className="side-brand-text">
             <span className="side-brand-name">{t('app.name')}</span>
@@ -239,7 +233,6 @@ export function Layout() {
           <NavLink
             key={item.to}
             to={item.to}
-            end={'end' in item ? item.end : undefined}
             className={({ isActive }) =>
               cx(
                 'bottom-link',

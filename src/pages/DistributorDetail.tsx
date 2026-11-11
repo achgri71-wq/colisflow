@@ -6,14 +6,12 @@ import {
   ArrowLeft,
   CalendarDays,
   Check,
-  ChartPie,
   ChevronDown,
   Clock,
   Copy,
   Download,
   Package,
   Pencil,
-  Percent,
   Phone,
   Play,
   ScrollText,
@@ -27,7 +25,6 @@ import { useDialog } from '../components/Dialog'
 import { useToast } from '../components/Toast'
 import { useDistributorActions } from '../hooks/useDistributorActions'
 import { Avatar, Badge, EmptyState, SearchField, StatCard } from '../components/ui'
-import { SplitBar } from '../components/Charts'
 import { countSessionCodes, distributorStats, senditSplit } from '../lib/stats'
 import { isSendit } from '../lib/codes'
 import {
@@ -35,7 +32,6 @@ import {
   cx,
   formatDate,
   formatNumber,
-  formatPercent,
   formatTime,
   relativeTime,
   secondsToClock,
@@ -355,13 +351,6 @@ export function DistributorDetailPage() {
           sub={`${formatNumber(sessionsFor.length, lang)} ${t('common.sessions')}`}
         />
         <StatCard
-          icon={<Percent size={19} />}
-          label={t('dashboard.kpi.sendit')}
-          value={formatPercent(split.share, lang)}
-          sub={`${formatNumber(senditCount, lang)} ${t('common.sendit')}`}
-          tone="warning"
-        />
-        <StatCard
           icon={<Clock size={19} />}
           label={t('dist.sessions')}
           value={formatNumber(stats.sessions, lang)}
@@ -372,18 +361,6 @@ export function DistributorDetailPage() {
           }
           tone="info"
         />
-        <article className="stat-card stat-neutral split-stat">
-          <div className="stat-top">
-            <span className="stat-icon"><ChartPie size={19} /></span>
-            <span className="stat-label">{t('dashboard.split.title')}</span>
-          </div>
-          <div className="split-stat-numbers">
-            <span className="split-stat-sendit">{formatNumber(senditCount, lang)}</span>
-            <span className="split-stat-divider">/</span>
-            <span>{formatNumber(standardCount, lang)}</span>
-          </div>
-          <SplitBar sendit={senditCount} standard={standardCount} />
-        </article>
       </section>
 
       <div className="detail-grid">

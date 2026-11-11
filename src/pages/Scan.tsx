@@ -393,10 +393,6 @@ export function ScanPage() {
                 <strong>{formatNumber(allCount, lang)}</strong>
                 <span>{t('scan.scanned')}</span>
               </div>
-              <div className="session-number">
-                <strong>{formatNumber(senditCount, lang)}</strong>
-                <span>{t('common.sendit')}</span>
-              </div>
             </div>
           </section>
 
