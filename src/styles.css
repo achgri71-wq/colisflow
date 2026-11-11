@@ -3046,10 +3046,10 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 22px;
+  gap: 16px;
   flex-wrap: wrap;
-  padding: 20px 22px;
-  margin-bottom: 14px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-accent);
   background:
@@ -3060,14 +3060,14 @@ kbd {
 .session-hero-main {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
 .session-hero-main h2 {
-  font-size: clamp(21px, 2.2vw, 27px);
-  margin-top: 5px;
-  letter-spacing: -0.025em;
+  font-size: 18px;
+  margin-top: 2px;
+  letter-spacing: -0.02em;
 }
 
 .session-sub {
@@ -3087,12 +3087,12 @@ kbd {
   display: flex;
   gap: 7px;
   flex-wrap: wrap;
-  margin-top: 13px;
+  margin-top: 8px;
 }
 
 .session-numbers {
   display: flex;
-  gap: 26px;
+  gap: 18px;
   flex-shrink: 0;
 }
 
@@ -3105,7 +3105,7 @@ kbd {
 
 .session-number strong {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1;
