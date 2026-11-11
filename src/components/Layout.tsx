@@ -56,7 +56,6 @@ const SYSTEM_LINKS = [
 
 const MOBILE_LINKS = [
   { to: '/distributors', label: 'nav.distributors', icon: Boxes },
-  { to: '/scan', label: 'nav.scan', icon: ScanBarcode, primary: true },
   { to: '/settings', label: 'nav.settings', icon: Settings },
 ] as const
 
@@ -237,13 +236,11 @@ export function Layout() {
               cx(
                 'bottom-link',
                 isActive && 'is-active',
-                'primary' in item && item.primary && 'is-primary',
               )
             }
           >
             <span className="bottom-icon">
-              <item.icon size={'primary' in item && item.primary ? 24 : 20} />
-              {item.to === '/scan' && activeSession ? <span className="bottom-live-dot" /> : null}
+              <item.icon size={18} />
             </span>
             <span className="bottom-label">{t(item.label)}</span>
           </NavLink>

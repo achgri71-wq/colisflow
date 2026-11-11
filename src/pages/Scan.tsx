@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Barcode,
+  Boxes,
   Camera,
   Check,
   CircleCheck,
@@ -300,10 +301,16 @@ export function ScanPage() {
       <PageHeader
         title={t('scan.title')}
         actions={
-          <button type="button" className="btn btn-secondary" onClick={() => setStartOpen(true)}>
-            <Plus size={17} />
-            {t('scan.new')}
-          </button>
+          <>
+            <Link to="/distributors" className="btn btn-ghost">
+              <Boxes size={16} />
+              {t('nav.distributors')}
+            </Link>
+            <button type="button" className="btn btn-secondary" onClick={() => setStartOpen(true)}>
+              <Plus size={17} />
+              {t('scan.new')}
+            </button>
+          </>
         }
       />
 
