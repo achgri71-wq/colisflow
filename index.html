@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#060a12" />
+    <meta
+      name="description"
+      content="ColisFlow — scannez, organisez et exportez vos colis par distributeur. Suivi Sendit, statistiques et mode hors ligne."
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ColisFlow" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta property="og:title" content="ColisFlow — Gestion de colis" />
+    <meta
+      property="og:description"
+      content="Scannez, organisez et exportez vos colis par distributeur. Fonctionne hors ligne."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <title>ColisFlow — Gestion de colis</title>
+    <script>
+      // Applique le thème avant le premier rendu pour éviter le flash.
+      try {
+        var saved = JSON.parse(localStorage.getItem('colisflow.settings') || '{}');
+        var theme = saved.theme || 'dark';
+        var dark =
+          theme === 'dark' ||
+          (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.lang = saved.lang || 'fr';
+        document.documentElement.dir = saved.lang === 'ar' ? 'rtl' : 'ltr';
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>ColisFlow nécessite JavaScript pour fonctionner.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,55 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17243f"/>
+      <stop offset="1" stop-color="#060a12"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(256 250) rotate(90) scale(230)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4c8dff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#4c8dff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="topFace" x1="146" y1="252" x2="366" y2="362" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#73adff"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="leftFace" x1="146" y1="307" x2="256" y2="436" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2b62cf"/>
+      <stop offset="1" stop-color="#1a4099"/>
+    </linearGradient>
+    <linearGradient id="rightFace" x1="366" y1="307" x2="256" y2="436" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173a88"/>
+      <stop offset="1" stop-color="#0e2760"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="256" y1="104" x2="256" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffd08a"/>
+      <stop offset="1" stop-color="#ff9f2e"/>
+    </linearGradient>
+    <linearGradient id="bracket" x1="64" y1="84" x2="448" y2="428" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8db8ff"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#glow)"/>
+  <rect x="7" y="7" width="498" height="498" rx="110" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+
+  <!-- scan brackets -->
+  <g stroke="url(#bracket)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.55">
+    <path d="M64 166V106C64 82.8 82.8 64 106 64H146"/>
+    <path d="M448 346V406C448 429.2 429.2 448 406 448H366"/>
+  </g>
+
+  <!-- parcel -->
+  <g>
+    <path d="M146 307L256 362V436L146 381V307Z" fill="url(#leftFace)"/>
+    <path d="M366 307L256 362V436L366 381V307Z" fill="url(#rightFace)"/>
+    <path d="M256 252L366 307L256 362L146 307L256 252Z" fill="url(#topFace)"/>
+    <path d="M146 307L256 362L366 307M256 362V436" stroke="#a9c9ff" stroke-opacity="0.62" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M256 252L366 307L256 362L146 307L256 252Z" stroke="#c6dbff" stroke-opacity="0.72" stroke-width="10" stroke-linejoin="round"/>
+  </g>
+
+  <!-- flow arrow -->
+  <path d="M256 238V138" stroke="url(#arrow)" stroke-width="26" stroke-linecap="round"/>
+  <path d="M204 160L256 106L308 160" stroke="url(#arrow)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
