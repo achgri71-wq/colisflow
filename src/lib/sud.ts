@@ -87,8 +87,8 @@ async function request<T>(
     method: init?.method ?? 'GET',
     body: init?.body,
     headers: init?.body
-      ? { 'X-Api-Key': key, 'Content-Type': 'application/json' }
-      : { 'X-Api-Key': key },
+      ? { 'X-Api-Key': key.trim(), 'Content-Type': 'application/json' }
+      : { 'X-Api-Key': key.trim() },
   })
 
   const text = await response.text()
