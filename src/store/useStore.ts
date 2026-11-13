@@ -14,6 +14,7 @@ import * as db from '../lib/db'
 import type { AllData } from '../lib/db'
 import { DEFAULT_SENDIT_PREFIXES, extractCode, uniqueCodes } from '../lib/codes'
 import { buildDemoData } from '../lib/demo'
+import { DEFAULT_SUD_URL } from '../lib/sud'
 import { uid } from '../lib/utils'
 
 const SETTINGS_KEY = 'colisflow.settings'
@@ -27,6 +28,8 @@ export const defaultSettings: Settings = {
   sound: true,
   haptics: true,
   keepAwake: false,
+  sudUrl: DEFAULT_SUD_URL,
+  sudKey: '',
 }
 
 function loadSettings(): Settings {

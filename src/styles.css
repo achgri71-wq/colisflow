@@ -5196,3 +5196,85 @@ kbd {
   }
 }
 
+/* ============ SUD Delivery — bon de retour livreur ============ */
+
+.sud-card {
+  margin-bottom: 16px;
+}
+
+.sud-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sud-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sud-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 2px 20px 18px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.sud-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 20px;
+}
+
+.sud-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.sud-stat strong {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.sud-stat span {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.sud-stat.is-accent strong {
+  color: var(--accent);
+}
+
+.sud-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 20px 0;
+}
+
+.sud-last {
+  padding: 10px 20px 18px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+

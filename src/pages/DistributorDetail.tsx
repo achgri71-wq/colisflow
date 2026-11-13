@@ -14,8 +14,11 @@ import {
   Pencil,
   Phone,
   Play,
+  RefreshCw,
   ScrollText,
+  Settings2,
   Trash,
+  Truck,
   X,
 } from 'lucide-react'
 import { useI18n } from '../i18n'
@@ -27,6 +30,17 @@ import { useDistributorActions } from '../hooks/useDistributorActions'
 import { Avatar, Badge, EmptyState, SearchField, StatCard } from '../components/ui'
 import { countSessionCodes, distributorStats, senditSplit } from '../lib/stats'
 import { isSendit } from '../lib/codes'
+import {
+  loadSentMap,
+  markSent,
+  matchLivreur,
+  saveSentMap,
+  sudCreateBrl,
+  sudErrorKey,
+  sudLivreurs,
+  type SudLivreur,
+  type SudSentMap,
+} from '../lib/sud'
 import {
   copyText,
   cx,
@@ -66,6 +80,14 @@ export function DistributorDetailPage() {
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
 
+  const sudUrl = useStore((state) => state.settings.sudUrl)
+  const sudKey = useStore((state) => state.settings.sudKey)
+  const [livreurs, setLivreurs] = useState<SudLivreur[]>([])
+  const [sudLoading, setSudLoading] = useState(false)
+  const [sudError, setSudError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+  const [sentMap, setSentMap] = useState<SudSentMap>(() => loadSentMap())
+
   useEffect(() => {
     if (!distributor) return
     setPhone(distributor.phone ?? '')
@@ -94,6 +116,54 @@ export function DistributorDetailPage() {
   )
 
   const split = useMemo(() => senditSplit(codesFor, prefixes), [codesFor, prefixes])
+
+  const sudConfigured = Boolean(sudUrl.trim() && sudKey.trim())
+
+  const sudLivreur = useMemo(
+    () => matchLivreur(distributor?.name ?? '', livreurs),
+    [distributor?.name, livreurs],
+  )
+
+  const newCodes = useMemo(
+    () => codesFor.filter((code) => !sentMap[code.id]),
+    [codesFor, sentMap],
+  )
+
+  const lastSent = useMemo(() => {
+    let latest: string | null = null
+    for (const code of codesFor) {
+      const entry = sentMap[code.id]
+      if (entry && (!latest || entry.at > latest)) latest = entry.at
+    }
+    return latest
+  }, [codesFor, sentMap])
+
+  useEffect(() => {
+    if (!sudConfigured) {
+      setLivreurs([])
+      setSudError(null)
+      return
+    }
+    let cancelled = false
+    setSudLoading(true)
+    sudLivreurs(sudUrl, sudKey)
+      .then((list) => {
+        if (cancelled) return
+        setLivreurs(list)
+        setSudError(null)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setLivreurs([])
+        setSudError(t(sudErrorKey(error)))
+      })
+      .finally(() => {
+        if (!cancelled) setSudLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sudConfigured, sudUrl, sudKey])
 
   const filteredCodes = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -165,6 +235,63 @@ export function DistributorDetailPage() {
         message: t('dist.sessionCodes', { count: sessionCodes.length }),
         tone: 'info',
       })
+    }
+  }
+
+  const sendBrl = async (all: boolean) => {
+    if (!sudLivreur) return
+    const target = all ? codesFor : newCodes
+    if (!target.length) return
+
+    const confirmed = await dialog.confirm({
+      title: t('sud.confirmTitle'),
+      message: t(all ? 'sud.confirmResendMsg' : 'sud.confirmMsg', {
+        count: formatNumber(target.length, lang),
+        name: sudLivreur.name,
+      }),
+      confirmLabel: t('sud.create'),
+      tone: 'primary',
+    })
+    if (!confirmed) return
+
+    setSending(true)
+    try {
+      const result = await sudCreateBrl(
+        sudUrl,
+        sudKey,
+        sudLivreur.id,
+        target.map((code) => code.code),
+      )
+
+      const missing = new Set(result.missing)
+      const accepted = target.filter((code) => !missing.has(code.code))
+      if (accepted.length) {
+        const next = markSent(sentMap, accepted.map((code) => code.id), result.brl)
+        saveSentMap(next)
+        setSentMap(next)
+      }
+
+      const title = result.added
+        ? result.brl
+          ? t('sud.result', { brl: result.brl, count: formatNumber(result.added, lang) })
+          : t('sud.resultNoBrl', { count: formatNumber(result.added, lang) })
+        : t('sud.allAlready')
+
+      const parts = [`${t('sud.livreur')}: ${result.livreur.name}`]
+      if (result.missing.length) {
+        parts.push(t('sud.missing', { count: formatNumber(result.missing.length, lang) }))
+      }
+
+      toast.push({
+        title,
+        message: parts.join(' · '),
+        tone: result.added ? 'success' : 'info',
+        duration: result.missing.length ? 9000 : 5000,
+      })
+    } catch (error) {
+      toast.push({ title: t('sud.title'), message: t(sudErrorKey(error)), tone: 'error' })
+    } finally {
+      setSending(false)
     }
   }
 
@@ -361,6 +488,85 @@ export function DistributorDetailPage() {
           }
           tone="info"
         />
+      </section>
+
+      <section className="card sud-card">
+        <div className="card-head">
+          <div className="sud-heading">
+            <span className="sud-icon"><Truck size={18} /></span>
+            <div>
+              <h2>{t('sud.title')}</h2>
+              <p>{t('sud.text')}</p>
+            </div>
+          </div>
+          {sudLivreur ? (
+            <Badge tone="accent" dot>
+              {sudLivreur.name}
+            </Badge>
+          ) : null}
+        </div>
+
+        {!sudConfigured ? (
+          <div className="sud-empty">
+            <span>{t('sud.notConfigured')}</span>
+            <Link to="/settings" className="btn btn-secondary btn-sm">
+              <Settings2 size={15} />
+              {t('sud.openSettings')}
+            </Link>
+          </div>
+        ) : sudLoading ? (
+          <div className="sud-empty">
+            <span>{t('common.loading')}</span>
+          </div>
+        ) : !sudLivreur ? (
+          <div className="sud-empty">
+            <span>{sudError ?? t('sud.noMatch')}</span>
+          </div>
+        ) : (
+          <>
+            <div className="sud-stats">
+              <div className="sud-stat">
+                <strong>{formatNumber(codesFor.length, lang)}</strong>
+                <span>{t('sud.codes')}</span>
+              </div>
+              <div className="sud-stat">
+                <strong>{formatNumber(codesFor.length - newCodes.length, lang)}</strong>
+                <span>{t('sud.sent')}</span>
+              </div>
+              <div className="sud-stat is-accent">
+                <strong>{formatNumber(newCodes.length, lang)}</strong>
+                <span>{t('sud.new')}</span>
+              </div>
+            </div>
+
+            <div className="sud-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => void sendBrl(false)}
+                disabled={sending || !newCodes.length}
+              >
+                <Truck size={15} />
+                {sending ? t('sud.sending') : t('sud.create')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => void sendBrl(true)}
+                disabled={sending || !codesFor.length}
+              >
+                <RefreshCw size={15} />
+                {t('sud.resend')}
+              </button>
+            </div>
+
+            {lastSent ? (
+              <div className="sud-last">
+                {t('sud.lastSent', { time: relativeTime(lastSent, lang) })}
+              </div>
+            ) : null}
+          </>
+        )}
       </section>
 
       <div className="detail-grid">

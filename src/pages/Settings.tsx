@@ -7,6 +7,7 @@ import {
   Keyboard,
   Monitor,
   Moon,
+  PlugZap,
   ScanBarcode,
   ShieldCheck,
   Smartphone,
@@ -16,6 +17,7 @@ import {
   SunMoon,
   Trash,
   TriangleAlert,
+  Truck,
   Upload,
 } from 'lucide-react'
 import type { BackupPayload, Language, ThemeMode } from '../types'
@@ -27,6 +29,7 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { Badge, PageHeader, Segmented, Toggle } from '../components/ui'
 import { senditPrefixesFromInput } from '../lib/codes'
 import { storageUsage } from '../lib/db'
+import { DEFAULT_SUD_URL, sudErrorKey, sudLivreurs } from '../lib/sud'
 import {
   dayKey,
   downloadJson,
@@ -75,6 +78,22 @@ export function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [storage, setStorage] = useState<{ used: number; quota: number } | null>(null)
   const [prefixText, setPrefixText] = useState(settings.senditPrefixes.join(', '))
+  const [testing, setTesting] = useState(false)
+
+  const testSud = async () => {
+    setTesting(true)
+    try {
+      const livreurs = await sudLivreurs(settings.sudUrl, settings.sudKey)
+      toast.push({
+        message: t('settings.sudOk', { count: formatNumber(livreurs.length, lang) }),
+        tone: 'success',
+      })
+    } catch (error) {
+      toast.push({ message: t(sudErrorKey(error)), tone: 'error' })
+    } finally {
+      setTesting(false)
+    }
+  }
 
   const wakeSupported =
     typeof navigator !== 'undefined' && 'wakeLock' in (navigator as Navigator)
@@ -261,6 +280,59 @@ export function SettingsPage() {
               </div>
             </div>
             <div className="settings-saved">{t('settings.saved')}</div>
+          </section>
+
+          <section className="card settings-card">
+            <div className="settings-head">
+              <span className="settings-icon"><Truck size={19} /></span>
+              <div>
+                <h2>{t('settings.sud')}</h2>
+                <p>{t('settings.sudText')}</p>
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="sud-url">
+                {t('settings.sudUrl')}
+              </label>
+              <input
+                id="sud-url"
+                className="input input-mono"
+                value={settings.sudUrl}
+                onChange={(event) => setSettings({ sudUrl: event.target.value })}
+                placeholder={DEFAULT_SUD_URL}
+                spellCheck={false}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label" htmlFor="sud-key">
+                {t('settings.sudKey')}
+              </label>
+              <input
+                id="sud-key"
+                className="input input-mono"
+                type="password"
+                value={settings.sudKey}
+                onChange={(event) => setSettings({ sudKey: event.target.value })}
+                placeholder={t('settings.sudKeyPlaceholder')}
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <div className="field-hint">{t('settings.sudHint')}</div>
+            </div>
+
+            <div className="install-row">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => void testSud()}
+                disabled={testing || !settings.sudUrl.trim() || !settings.sudKey.trim()}
+              >
+                <PlugZap size={15} />
+                {testing ? t('settings.sudTesting') : t('settings.sudTest')}
+              </button>
+            </div>
           </section>
 
           <section className="card settings-card">

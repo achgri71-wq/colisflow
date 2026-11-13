@@ -70,6 +70,8 @@ export interface Settings {
   sound: boolean
   haptics: boolean
   keepAwake: boolean
+  sudUrl: string
+  sudKey: string
 }
 
 export interface BackupPayload {
