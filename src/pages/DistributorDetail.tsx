@@ -271,23 +271,37 @@ export function DistributorDetailPage() {
         setSentMap(next)
       }
 
-      const title = result.added
-        ? result.brl
-          ? t('sud.result', { brl: result.brl, count: formatNumber(result.added, lang) })
-          : t('sud.resultNoBrl', { count: formatNumber(result.added, lang) })
-        : t('sud.allAlready')
-
       const parts = [`${t('sud.livreur')}: ${result.livreur.name}`]
       if (result.missing.length) {
         parts.push(t('sud.missing', { count: formatNumber(result.missing.length, lang) }))
       }
 
-      toast.push({
-        title,
-        message: parts.join(' · '),
-        tone: result.added ? 'success' : 'info',
-        duration: result.missing.length ? 9000 : 5000,
-      })
+      if (result.added === 0) {
+        // None of the scanned codes exist on SUD.
+        toast.push({
+          title: t('sud.missing', { count: formatNumber(result.missing.length, lang) }),
+          message: `${t('sud.livreur')}: ${result.livreur.name}`,
+          tone: 'error',
+          duration: 9000,
+        })
+      } else if (!result.created) {
+        // The exact same list is already on the livreur's voucher.
+        toast.push({
+          title: t('sud.allAlready'),
+          message: `${t('sud.livreur')}: ${result.livreur.name}`,
+          tone: 'info',
+          duration: 6000,
+        })
+      } else {
+        toast.push({
+          title: result.brl
+            ? t('sud.result', { brl: result.brl, count: formatNumber(result.added, lang) })
+            : t('sud.resultNoBrl', { count: formatNumber(result.added, lang) }),
+          message: parts.join(' · '),
+          tone: 'success',
+          duration: result.missing.length ? 9000 : 5000,
+        })
+      }
     } catch (error) {
       toast.push({ title: t('sud.title'), message: t(sudErrorKey(error)), tone: 'error' })
     } finally {

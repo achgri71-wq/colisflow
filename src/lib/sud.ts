@@ -21,10 +21,10 @@ export interface SudBrlInfo {
 
 export interface SudCreateResult {
   brl: string | null
+  created: boolean
   livreur: SudLivreur
   total: number
   added: number
-  already: number
   missing: string[]
 }
 
