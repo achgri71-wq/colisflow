@@ -5297,6 +5297,11 @@ kbd {
   font-weight: 600;
 }
 
+.scan-hint-auto {
+  margin: -4px 0 10px;
+  font-size: 11px;
+}
+
 .scan-connect > .btn {
   align-self: flex-start;
 }

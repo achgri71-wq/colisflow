@@ -7,6 +7,7 @@ import { StartSessionModal } from './components/StartSessionModal'
 import { useI18n } from './i18n'
 import { useThemeEffect } from './hooks/useThemeEffect'
 import { useWakeLock } from './hooks/useWakeLock'
+import { useScannerAutoSync } from './hooks/useScannerAutoSync'
 import { useStore } from './store/useStore'
 import { isTypingTarget } from './lib/utils'
 
@@ -54,6 +55,7 @@ export function App() {
 
   useThemeEffect()
   useWakeLock(keepAwake && ready)
+  useScannerAutoSync(ready)
 
   const { needRefresh, offlineReady, updateServiceWorker } = useRegisterSW()
   const [refreshNeeded] = needRefresh

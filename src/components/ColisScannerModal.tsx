@@ -220,6 +220,8 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
             </div>
           </div>
 
+          <p className="scan-hint scan-hint-auto">{t('scanlink.autoHint')}</p>
+
           {error ? <p className="scan-error">{error}</p> : null}
 
           {items.length === 0 ? (

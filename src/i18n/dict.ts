@@ -355,6 +355,8 @@ export const fr = {
 
   'scanlink.title': 'Colis Scanner',
   'scanlink.subtitle': 'Connectez-vous avec le même compte Colis Scanner pour importer ses listes de distributeurs.',
+  'scanlink.autoTitle': 'Colis Scanner synchronisé',
+  'scanlink.autoHint': 'L’import se fait aussi automatiquement toutes les 5 minutes.',
   'scanlink.email': 'Email',
   'scanlink.password': 'Mot de passe',
   'scanlink.connect': 'Se connecter',
@@ -733,6 +735,8 @@ const en: Dictionary = {
 
   'scanlink.title': 'Colis Scanner',
   'scanlink.subtitle': 'Sign in with the same Colis Scanner account to import its distributor lists.',
+  'scanlink.autoTitle': 'Colis Scanner synced',
+  'scanlink.autoHint': 'Import also runs automatically every 5 minutes.',
   'scanlink.email': 'Email',
   'scanlink.password': 'Password',
   'scanlink.connect': 'Sign in',
@@ -1105,6 +1109,8 @@ const ar: Dictionary = {
 
   'scanlink.title': 'Colis Scanner',
   'scanlink.subtitle': 'سجّل الدخول بنفس حساب Colis Scanner لاستيراد قوائم الموزعين.',
+  'scanlink.autoTitle': 'تمت مزامنة Colis Scanner',
+  'scanlink.autoHint': 'يتم الاستيراد أيضاً تلقائياً كل 5 دقائق.',
   'scanlink.email': 'البريد الإلكتروني',
   'scanlink.password': 'كلمة المرور',
   'scanlink.connect': 'تسجيل الدخول',

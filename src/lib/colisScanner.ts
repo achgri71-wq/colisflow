@@ -139,7 +139,13 @@ async function refreshAccessToken(refreshToken: string): Promise<{ idToken: stri
       `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
       'application/x-www-form-urlencoded',
     )
-  } catch {
+  } catch (error) {
+    const status = (error as { status?: number } | null)?.status
+    if (status === 400 || status === 401 || status === 403) {
+      // The remembered session is no longer valid: forget it.
+      clearStored()
+      throw new Error('unauthenticated')
+    }
     throw new Error('network-error')
   }
 
