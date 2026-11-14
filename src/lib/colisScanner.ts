@@ -16,9 +16,17 @@ const DATABASE_URL = 'https://colisscan-default-rtdb.firebaseio.com'
 const AUTH_URL = 'https://identitytoolkit.googleapis.com/v1'
 const TOKEN_URL = 'https://securetoken.googleapis.com/v1'
 const STORAGE_KEY = 'colisflow.scan.auth'
+const RETURN_CACHE_KEY = 'colisflow.rsp.returns'
+export const DEFAULT_LINK_URL = 'https://suddelivery.net/api/link.php'
 
 export interface ScannerAuth {
   email: string
+}
+
+export interface ReturnPayload {
+  s: 'returned' | 'pending' | 'not-required' | 'prohibited'
+  l: string
+  at?: string
 }
 
 interface StoredAuth {
@@ -250,4 +258,99 @@ export function normalizeScanDistributors(raw: unknown): ScanDistributor[] {
     return (b.date ?? '').localeCompare(a.date ?? '')
   })
   return result
+}
+
+/* ---------- Direct link with Return Scanner Pro (shared SUD server) ----- */
+
+/** Derives the shared bus URL from the configured SUD bridge URL. */
+export function linkUrlFor(sudUrl: string): string {
+  try {
+    return `${new URL(sudUrl).origin}/api/link.php`
+  } catch {
+    return DEFAULT_LINK_URL
+  }
+}
+
+/** Compacts the local distributor data for publication. */
+export function buildFlowPayload(
+  distributors: { id: string; name: string; updatedAt: string; archived: boolean }[],
+  codes: { code: string; distributorId: string }[],
+): { distributors: { name: string; codes: string[]; date: string; archived: boolean }[] } {
+  const byDistributor = new Map<string, string[]>()
+  for (const record of codes) {
+    const list = byDistributor.get(record.distributorId)
+    if (list) list.push(record.code)
+    else byDistributor.set(record.distributorId, [record.code])
+  }
+  return {
+    distributors: distributors.map((entry) => ({
+      name: entry.name,
+      codes: Array.from(new Set(byDistributor.get(entry.id) ?? [])),
+      date: entry.updatedAt,
+      archived: entry.archived,
+    })),
+  }
+}
+
+/** Publishes ColisFlow's distributor lists to the shared bus. */
+export async function publishFlowDistributors(
+  linkUrl: string,
+  apiKey: string,
+  payload: unknown,
+): Promise<void> {
+  const response = await fetch(`${linkUrl.replace(/\/+$/, '')}?action=put&slot=flow`, {
+    method: 'PUT',
+    headers: { 'X-Api-Key': apiKey.trim(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) throw new Error(`link-put-${response.status}`)
+}
+
+/** Reads the return statuses published by Return Scanner Pro. */
+export async function fetchReturnStatuses(linkUrl: string, apiKey: string): Promise<Record<string, ReturnPayload>> {
+  const response = await fetch(`${linkUrl.replace(/\/+$/, '')}?action=get&slot=rsp`, {
+    headers: { 'X-Api-Key': apiKey.trim() },
+  })
+  if (!response.ok) throw new Error(`link-get-${response.status}`)
+  const payload = (await response.json()) as { ok?: boolean; data?: unknown } | null
+  if (!payload || payload.ok !== true) throw new Error('link-get-invalid')
+
+  const result: Record<string, ReturnPayload> = {}
+  const returns =
+    payload.data && typeof payload.data === 'object'
+      ? (payload.data as { returns?: Record<string, unknown> }).returns
+      : null
+  if (!returns || typeof returns !== 'object') return result
+  for (const [rawCode, rawValue] of Object.entries(returns)) {
+    if (!rawValue || typeof rawValue !== 'object') continue
+    const entry = rawValue as { s?: unknown; l?: unknown; at?: unknown }
+    const status = String(entry.s ?? '')
+    if (!['returned', 'pending', 'not-required', 'prohibited'].includes(status)) continue
+    result[rawCode.toUpperCase()] = {
+      s: status as ReturnPayload['s'],
+      l: String(entry.l ?? ''),
+      at: typeof entry.at === 'string' ? entry.at : undefined,
+    }
+  }
+  return result
+}
+
+/** Local cache of the published return statuses (refreshed by the sync hook). */
+export function loadReturnStatuses(): Record<string, ReturnPayload> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(RETURN_CACHE_KEY) || '{}')
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, ReturnPayload>) : {}
+  } catch {
+    return {}
+  }
+}
+
+/** Saves the return status cache and notifies listeners. */
+export function saveReturnStatuses(statuses: Record<string, ReturnPayload>): void {
+  try {
+    localStorage.setItem(RETURN_CACHE_KEY, JSON.stringify(statuses))
+  } catch {
+    /* storage may be unavailable */
+  }
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('colisflow.rsp'))
 }

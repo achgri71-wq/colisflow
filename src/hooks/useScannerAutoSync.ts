@@ -2,7 +2,15 @@ import { useEffect, useRef } from 'react'
 import { useI18n } from '../i18n'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
-import { fetchScanDistributors, getScannerAuth } from '../lib/colisScanner'
+import {
+  buildFlowPayload,
+  fetchReturnStatuses,
+  fetchScanDistributors,
+  getScannerAuth,
+  linkUrlFor,
+  publishFlowDistributors,
+  saveReturnStatuses,
+} from '../lib/colisScanner'
 import { formatNumber } from '../lib/utils'
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000
@@ -10,11 +18,14 @@ const INITIAL_DELAY_MS = 4000
 const MIN_GAP_MS = 60 * 1000
 
 /**
- * Background bridge: when a Colis Scanner account is connected, its shared
- * distributor lists are fetched and merged into ColisFlow automatically —
- * shortly after startup, then every few minutes while the app is visible and
- * online. The store import is idempotent (unchanged lists are no-ops), so the
- * merge never duplicates data and never disturbs the active scanning session.
+ * Background bridges:
+ * 1. Colis Scanner: its shared distributor lists are fetched and merged into
+ *    ColisFlow automatically when a Colis Scanner account is connected.
+ * 2. Return Scanner Pro: ColisFlow publishes its distributor lists to the
+ *    shared SUD server and reads back the return statuses RSP published.
+ *
+ * Both run shortly after startup, then every few minutes while the app is
+ * visible and online. Failures are silent and retried on the next tick.
  */
 export function useScannerAutoSync(enabled: boolean): void {
   const importFromScanner = useStore((state) => state.importFromScanner)
@@ -37,30 +48,49 @@ export function useScannerAutoSync(enabled: boolean): void {
       if (stopped || busy.current) return
       if (!navigator.onLine) return
       if (document.visibilityState !== 'visible') return
-      if (!getScannerAuth()) return
       if (Date.now() - lastSync.current < MIN_GAP_MS) return
+
+      const settings = useStore.getState().settings
+      const apiKey = settings.sudKey.trim()
+      const hasScanner = Boolean(getScannerAuth())
+      if (!hasScanner && !apiKey) return
 
       busy.current = true
       try {
-        const items = await fetchScanDistributors()
-        if (stopped) return
-        lastSync.current = Date.now()
-        const result = await importRef.current(items)
-        if (result.added > 0 || result.moved > 0) {
-          const { t: translate, lang: language } = localeRef.current
-          toast.push({
-            title: translate('scanlink.autoTitle'),
-            message: translate('scanlink.doneMsg', {
-              created: formatNumber(result.created, language),
-              codes: formatNumber(result.added, language),
-              moved: formatNumber(result.moved, language),
-            }),
-            tone: 'info',
-            duration: 7000,
-          })
+        if (hasScanner) {
+          const items = await fetchScanDistributors()
+          if (stopped) return
+          lastSync.current = Date.now()
+          const result = await importRef.current(items)
+          if (result.added > 0 || result.moved > 0) {
+            const { t: translate, lang: language } = localeRef.current
+            toast.push({
+              title: translate('scanlink.autoTitle'),
+              message: translate('scanlink.doneMsg', {
+                created: formatNumber(result.created, language),
+                codes: formatNumber(result.added, language),
+                moved: formatNumber(result.moved, language),
+              }),
+              tone: 'info',
+              duration: 7000,
+            })
+          }
+        }
+
+        if (apiKey) {
+          // Direct link with Return Scanner Pro through the shared server.
+          const linkUrl = linkUrlFor(settings.sudUrl)
+          const state = useStore.getState()
+          await publishFlowDistributors(
+            linkUrl,
+            apiKey,
+            buildFlowPayload(state.distributors, state.codes),
+          )
+          const statuses = await fetchReturnStatuses(linkUrl, apiKey)
+          if (!stopped) saveReturnStatuses(statuses)
         }
       } catch {
-        /* offline or expired session: silent, retried later */
+        /* offline or unreachable server: silent, retried later */
       } finally {
         busy.current = false
       }

@@ -377,6 +377,11 @@ export const fr = {
   'scanlink.confirmMsg': '{lists} liste(s), {codes} code(s). Les codes déjà présents chez un autre distributeur seront déplacés.',
   'scanlink.doneTitle': 'Import terminé',
   'scanlink.doneMsg': '{created} nouveau(x) distributeur(s) · {codes} code(s) ajouté(s) · {moved} déplacé(s)',
+
+  'rsp.returned': 'Retourné',
+  'rsp.pending': 'En attente',
+  'rsp.notRequired': 'Non demandé',
+  'rsp.prohibited': 'Interdit',
 } as const
 
 export type TranslationKey = keyof typeof fr
@@ -757,6 +762,11 @@ const en: Dictionary = {
   'scanlink.confirmMsg': '{lists} list(s), {codes} code(s). Codes already stored at another distributor will be moved.',
   'scanlink.doneTitle': 'Import complete',
   'scanlink.doneMsg': '{created} new distributor(s) · {codes} code(s) added · {moved} moved',
+
+  'rsp.returned': 'Returned',
+  'rsp.pending': 'Pending',
+  'rsp.notRequired': 'Not required',
+  'rsp.prohibited': 'Prohibited',
 }
 
 const ar: Dictionary = {
@@ -1131,6 +1141,11 @@ const ar: Dictionary = {
   'scanlink.confirmMsg': '{lists} قائمة، {codes} كود. الأكواد الموجودة عند موزع آخر ستُنقل.',
   'scanlink.doneTitle': 'تم الاستيراد',
   'scanlink.doneMsg': '{created} موزع جديد · {codes} كود أُضيف · {moved} نُقل',
+
+  'rsp.returned': 'مرتجع',
+  'rsp.pending': 'قيد الانتظار',
+  'rsp.notRequired': 'غير مطلوب',
+  'rsp.prohibited': 'محظور',
 }
 
 export const dictionaries = { fr, en, ar }

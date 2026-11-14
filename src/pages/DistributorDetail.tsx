@@ -31,6 +31,10 @@ import { Avatar, Badge, EmptyState, SearchField, StatCard } from '../components/
 import { countSessionCodes, distributorStats, senditSplit } from '../lib/stats'
 import { isSendit } from '../lib/codes'
 import {
+  loadReturnStatuses,
+  type ReturnPayload,
+} from '../lib/colisScanner'
+import {
   loadSentMap,
   markSent,
   matchLivreur,
@@ -52,6 +56,37 @@ import {
 } from '../lib/utils'
 
 type Filter = 'all' | 'sendit' | 'standard'
+
+const RETURN_TONES: Record<ReturnPayload['s'], 'accent' | 'warning' | 'danger' | 'info'> = {
+  returned: 'accent',
+  pending: 'warning',
+  'not-required': 'info',
+  prohibited: 'danger',
+}
+
+const RETURN_KEYS: Record<ReturnPayload['s'], 'rsp.returned' | 'rsp.pending' | 'rsp.notRequired' | 'rsp.prohibited'> = {
+  returned: 'rsp.returned',
+  pending: 'rsp.pending',
+  'not-required': 'rsp.notRequired',
+  prohibited: 'rsp.prohibited',
+}
+
+/** Reads the return statuses published by Return Scanner Pro (auto-refreshed). */
+function useReturnStatuses(): Record<string, ReturnPayload> {
+  const [statuses, setStatuses] = useState<Record<string, ReturnPayload>>(() => loadReturnStatuses())
+
+  useEffect(() => {
+    const refresh = () => setStatuses(loadReturnStatuses())
+    window.addEventListener('colisflow.rsp', refresh)
+    const timer = window.setInterval(refresh, 30_000)
+    return () => {
+      window.removeEventListener('colisflow.rsp', refresh)
+      clearInterval(timer)
+    }
+  }, [])
+
+  return statuses
+}
 
 export function DistributorDetailPage() {
   const { id = '' } = useParams()
@@ -79,6 +114,7 @@ export function DistributorDetailPage() {
   const [editing, setEditing] = useState(false)
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
+  const returnStatuses = useReturnStatuses()
 
   const sudUrl = useStore((state) => state.settings.sudUrl)
   const sudKey = useStore((state) => state.settings.sudKey)
@@ -624,6 +660,7 @@ export function DistributorDetailPage() {
               <div className="code-list">
                 {filteredCodes.slice(0, visible).map((code, index) => {
                   const sendit = isSendit(code.code, prefixes)
+                  const rs = returnStatuses[code.code.toUpperCase()]
                   return (
                     <div className="code-row" key={code.id}>
                       <span className="code-index">{String(index + 1).padStart(2, '0')}</span>
@@ -644,6 +681,11 @@ export function DistributorDetailPage() {
                       <Badge tone={sendit ? 'accent' : 'neutral'}>
                         {sendit ? t('common.sendit') : t('common.standard')}
                       </Badge>
+                      {rs ? (
+                        <Badge tone={RETURN_TONES[rs.s]} dot>
+                          {t(RETURN_KEYS[rs.s])}
+                        </Badge>
+                      ) : null}
                       <div className="code-actions">
                         <button
                           type="button"
