@@ -4,6 +4,7 @@ import {
   Camera,
   ChevronRight,
   Copy,
+  FilterX,
   Package,
   Plus,
   ScanBarcode,
@@ -13,9 +14,10 @@ import { useI18n } from '../i18n'
 import { useStore, useActiveSession } from '../store/useStore'
 import { useToast } from '../components/Toast'
 import { ScannerModal } from '../components/ScannerModal'
-import { Avatar, Badge, EmptyState, PageHeader, SearchField } from '../components/ui'
+import { Avatar, Badge, EmptyState, PageHeader, SearchField, Segmented } from '../components/ui'
 import { distributorStats } from '../lib/stats'
 import { isSendit } from '../lib/codes'
+import { multiSearchCodes, parseMultiCodes } from '../lib/multiSearch'
 import {
   copyText,
   cx,
@@ -47,6 +49,9 @@ export function SearchPage() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [mode, setMode] = useState<'single' | 'multi'>('single')
+  const [blob, setBlob] = useState('')
+  const [multiCodes, setMultiCodes] = useState<string[]>([])
   const deferredQuery = useDeferredValue(query)
 
   const distributors = useStore((state) => state.distributors)
@@ -97,6 +102,25 @@ export function SearchPage() {
   const visibleCodes = showParcels ? codeMatches.slice(0, 60) : []
   const resultCount = visibleDistributors.length + visibleCodes.length
 
+  const blobCodes = useMemo(() => parseMultiCodes(blob), [blob])
+
+  const multiResult = useMemo(
+    () => (multiCodes.length ? multiSearchCodes(multiCodes, { codes, distributors }) : null),
+    [multiCodes, codes, distributors],
+  )
+
+  const runMulti = () => setMultiCodes(parseMultiCodes(blob))
+
+  const clearMulti = () => {
+    setBlob('')
+    setMultiCodes([])
+  }
+
+  const modeChips: { value: 'single' | 'multi'; label: string }[] = [
+    { value: 'single', label: t('search.modeSingle') },
+    { value: 'multi', label: t('search.modeMulti') },
+  ]
+
   const addToSession = (code: string) => {
     if (!activeSession) {
       toast.push({ message: t('search.noSession'), tone: 'warning' })
@@ -138,47 +162,148 @@ export function SearchPage() {
       <PageHeader
         title={t('search.title')}
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setCameraOpen(true)}>
-            <Camera size={17} />
-            {t('search.scan')}
-          </button>
+          mode === 'single' ? (
+            <button type="button" className="btn btn-primary" onClick={() => setCameraOpen(true)}>
+              <Camera size={17} />
+              {t('search.scan')}
+            </button>
+          ) : undefined
         }
       />
 
       <section className="card search-hero">
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          placeholder={t('search.placeholder')}
-          autoFocus
-          size="lg"
-        />
-        <div className="search-hero-row">
-          <div className="filter-row">
-            {filters.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={cx('chip', filter === item.key && 'is-active')}
-                onClick={() => setFilter(item.key)}
-              >
-                {item.label}
-                {item.count ? <span className="chip-count">{item.count}</span> : null}
-              </button>
-            ))}
-          </div>
-          {activeSession ? (
-            <span className="search-session-hint">
-              <span className="pulse-dot" />
-              {t('scan.sessionOf', { name: activeSession.distributorName })}
-            </span>
-          ) : (
-            <span className="search-session-hint is-muted">{t('search.noActiveSession')}</span>
-          )}
+        <div className="search-mode-row">
+          <Segmented value={mode} options={modeChips} onChange={setMode} />
         </div>
+
+        {mode === 'single' ? (
+          <>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder={t('search.placeholder')}
+              autoFocus
+              size="lg"
+            />
+            <div className="search-hero-row">
+              <div className="filter-row">
+                {filters.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={cx('chip', filter === item.key && 'is-active')}
+                    onClick={() => setFilter(item.key)}
+                  >
+                    {item.label}
+                    {item.count ? <span className="chip-count">{item.count}</span> : null}
+                  </button>
+                ))}
+              </div>
+              {activeSession ? (
+                <span className="search-session-hint">
+                  <span className="pulse-dot" />
+                  {t('scan.sessionOf', { name: activeSession.distributorName })}
+                </span>
+              ) : (
+                <span className="search-session-hint is-muted">{t('search.noActiveSession')}</span>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="multi-search">
+            <p className="multi-hint">{t('search.multiHint')}</p>
+            <textarea
+              className="textarea input-mono multi-input"
+              value={blob}
+              onChange={(event) => setBlob(event.target.value)}
+              placeholder={t('search.multiPlaceholder')}
+              spellCheck={false}
+              autoComplete="off"
+            />
+            <div className="multi-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={runMulti}
+                disabled={blobCodes.length === 0}
+              >
+                <Search size={16} />
+                {t('search.multiRun')}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setCameraOpen(true)}>
+                <Camera size={16} />
+                {t('search.multiScan')}
+              </button>
+              {blob ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={clearMulti}>
+                  <FilterX size={15} />
+                  {t('search.multiReset')}
+                </button>
+              ) : null}
+              <span className="multi-count">
+                {t('search.multiCount', { count: formatNumber(blobCodes.length, lang) })}
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
-      {!needle ? (
+      {mode === 'multi' ? (
+        !multiResult ? (
+          <EmptyState
+            icon={<Search size={30} />}
+            title={t('search.multiStart')}
+            text={t('search.multiHint')}
+          />
+        ) : (
+          <>
+            <div className="search-summary">
+              <span>
+                {t('search.multiFound', { count: formatNumber(multiResult.found, lang) })} ·{' '}
+                {t('search.multiMissing', { count: formatNumber(multiResult.missing, lang) })}
+              </span>
+            </div>
+
+            <section className="card search-section">
+              <div className="card-head">
+                <div className="codes-heading">
+                  <h2>{t('search.multiResults')}</h2>
+                  <Badge tone="accent">{formatNumber(multiResult.total, lang)}</Badge>
+                </div>
+              </div>
+              <div className="multi-list">
+                {multiResult.items.map((item) => (
+                  <div className="multi-row" key={item.code}>
+                    <span className="code-mono multi-row-code">{item.code}</span>
+                    <div className="multi-row-matches">
+                      {item.matches.length === 0 ? (
+                        <Badge tone="danger" dot>
+                          {t('search.multiNotFound')}
+                        </Badge>
+                      ) : (
+                        item.matches.map((match) => (
+                          <Link
+                            key={match.distributorId}
+                            to={`/distributors/${match.distributorId}`}
+                            className="multi-match"
+                          >
+                            <Badge tone="accent" dot>
+                              {match.distributorName}
+                            </Badge>
+                            {match.archived ? (
+                              <Badge tone="muted">{t('search.archived')}</Badge>
+                            ) : null}
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        )
+      ) : !needle ? (
         <EmptyState
           icon={<Search size={30} />}
           title={t('search.emptyTitle')}
@@ -333,8 +458,14 @@ export function SearchPage() {
         onClose={() => setCameraOpen(false)}
         mode="search"
         onDetect={(code) => {
-          setQuery(code)
-          setCameraOpen(false)
+          if (mode === 'multi') {
+            // Keep the camera open: each scan appends to the paste list.
+            setBlob((previous) => (previous ? `${previous}\n${code}` : code))
+            setMultiCodes((previous) => (previous.length ? [...previous, code.toUpperCase()] : previous))
+          } else {
+            setQuery(code)
+            setCameraOpen(false)
+          }
         }}
       />
     </div>
