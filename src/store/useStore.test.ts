@@ -1,0 +1,83 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// The store persists through IndexedDB; mock the whole data layer.
+vi.mock('../lib/db')
+
+import { useStore } from './useStore'
+import type { Distributor, ScanCode } from '../types'
+
+const NOW = new Date().toISOString()
+
+function distributor(id: string, name: string, fixed = false): Distributor {
+  return { id, name, createdAt: NOW, updatedAt: NOW, archived: false, ...(fixed ? { fixed: true } : {}) }
+}
+
+function code(id: string, value: string, distributorId: string): ScanCode {
+  return {
+    id,
+    code: value,
+    raw: value,
+    sessionId: 'sess-1',
+    distributorId,
+    scannedAt: NOW,
+    source: 'manual',
+  }
+}
+
+describe('importFromScanner — permanent routeur lists', () => {
+  beforeEach(() => {
+    useStore.setState({ distributors: [], sessions: [], codes: [], events: [] })
+  })
+
+  it('never pulls a code out of a fixed list, even when the scanner lists it elsewhere', async () => {
+    const fixed = distributor('fixed-routeure-ayoub', 'ROUTEURE AYOUB', true)
+    const other = distributor('dist-1', 'LIVREUR A')
+    useStore.setState({
+      distributors: [fixed, other],
+      codes: [code('code-1', 'SENDIT001', fixed.id)],
+      sessions: [],
+    })
+
+    await useStore.getState().importFromScanner([
+      { id: 'sd-1', name: 'LIVREUR A', codes: ['SENDIT001'], archived: false },
+    ])
+
+    const stored = useStore.getState().codes.find((entry) => entry.code === 'SENDIT001')
+    expect(stored?.distributorId).toBe(fixed.id)
+  })
+
+  it('keeps the fixed-list copy when the same code is listed twice in one batch', async () => {
+    const fixed = distributor('fixed-routeur-anass', 'ROUTEUR ANASS', true)
+    const other = distributor('dist-2', 'LIVREUR B')
+    useStore.setState({
+      distributors: [fixed, other],
+      codes: [code('code-2', 'SENDIT002', fixed.id)],
+      sessions: [],
+    })
+
+    await useStore.getState().importFromScanner([
+      { id: 'sd-2', name: 'LIVREUR B', codes: ['SENDIT002'], archived: false },
+      { id: 'sd-3', name: 'ROUTEUR ANASS', codes: ['SENDIT002'], archived: false },
+    ])
+
+    const stored = useStore.getState().codes.find((entry) => entry.code === 'SENDIT002')
+    expect(stored?.distributorId).toBe(fixed.id)
+  })
+
+  it('still moves a code between ordinary distributors', async () => {
+    const a = distributor('dist-a', 'LIVREUR A')
+    const b = distributor('dist-b', 'LIVREUR B')
+    useStore.setState({
+      distributors: [a, b],
+      codes: [code('code-3', 'SENDIT003', a.id)],
+      sessions: [],
+    })
+
+    await useStore.getState().importFromScanner([
+      { id: 'sd-4', name: 'LIVREUR B', codes: ['SENDIT003'], archived: false },
+    ])
+
+    const stored = useStore.getState().codes.find((entry) => entry.code === 'SENDIT003')
+    expect(stored?.distributorId).toBe(b.id)
+  })
+})

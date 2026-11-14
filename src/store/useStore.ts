@@ -17,7 +17,7 @@ import * as db from '../lib/db'
 import type { AllData } from '../lib/db'
 import { DEFAULT_SENDIT_PREFIXES, extractCode, uniqueCodes } from '../lib/codes'
 import { buildDemoData } from '../lib/demo'
-import { FIXED_LISTS } from '../lib/fixedLists'
+import { FIXED_LISTS, isFixedListName } from '../lib/fixedLists'
 import { DEFAULT_SUD_URL } from '../lib/sud'
 import { uid } from '../lib/utils'
 
@@ -759,6 +759,14 @@ export const useStore = create<StoreState>((set, get) => {
       const byCode = new Map(state.codes.map((record) => [record.code, record]))
       const createdByName = new Map<string, Distributor>()
 
+      // Permanent routeur lists keep the codes that were moved into them: the
+      // scanner sync must never pull a code back out of a fixed list.
+      const fixedIds = new Set(
+        state.distributors
+          .filter((entry) => entry.fixed || isFixedListName(entry.name))
+          .map((entry) => entry.id),
+      )
+
       for (const item of items) {
         const name = item.name.trim()
         if (!name || !item.codes.length) continue
@@ -795,6 +803,13 @@ export const useStore = create<StoreState>((set, get) => {
           const existing = byCode.get(code)
           if (existing && existing.distributorId === distributor.id) {
             duplicates += 1
+            continue
+          }
+
+          // The code already sits in a permanent routeur list: leave it there.
+          // The scanner may list it elsewhere (or twice), but a manual move to
+          // a fixed list wins and is never undone by the sync.
+          if (existing && fixedIds.has(existing.distributorId)) {
             continue
           }
 
