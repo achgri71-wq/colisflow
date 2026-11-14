@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Boxes, Plus, Search, X } from 'lucide-react'
+import { Boxes, CloudDownload, Plus, Search, X } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { useStore } from '../store/useStore'
 import { PageHeader, SearchField, EmptyState } from '../components/ui'
 import { DistributorCard } from '../components/DistributorCard'
+import { ColisScannerModal } from '../components/ColisScannerModal'
 import { StartSessionModal } from '../components/StartSessionModal'
 import { useDistributorActions } from '../hooks/useDistributorActions'
 import { distributorStats } from '../lib/stats'
@@ -22,6 +23,7 @@ export function DistributorsPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [startOpen, setStartOpen] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false)
 
   const statsById = useMemo(() => {
     const map = new Map<string, ReturnType<typeof distributorStats>>()
@@ -64,10 +66,16 @@ export function DistributorsPage() {
       <PageHeader
         title={t('dist.title')}
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setStartOpen(true)}>
-            <Plus size={17} />
-            {t('dist.new')}
-          </button>
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setScanOpen(true)}>
+              <CloudDownload size={16} />
+              {t('scanlink.title')}
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => setStartOpen(true)}>
+              <Plus size={17} />
+              {t('dist.new')}
+            </button>
+          </>
         }
       />
 
@@ -153,6 +161,7 @@ export function DistributorsPage() {
       )}
 
       <StartSessionModal open={startOpen} onClose={() => setStartOpen(false)} />
+      <ColisScannerModal open={scanOpen} onClose={() => setScanOpen(false)} />
     </div>
   )
 }

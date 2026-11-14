@@ -101,3 +101,20 @@ export interface BulkAddResult {
   newCodes: ScanCode[]
   removed: ScanCode[]
 }
+
+export interface ScannerImportResult {
+  created: number
+  updated: number
+  added: number
+  moved: number
+  duplicates: number
+}
+
+/** One distributor list as read from the Colis Scanner app. */
+export interface ScanDistributor {
+  id: string
+  name: string
+  codes: string[]
+  date?: string
+  archived: boolean
+}

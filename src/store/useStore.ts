@@ -7,7 +7,9 @@ import type {
   CodeSource,
   Distributor,
   ScanCode,
+  ScanDistributor,
   ScanSession,
+  ScannerImportResult,
   Settings,
 } from '../types'
 import * as db from '../lib/db'
@@ -85,6 +87,7 @@ interface StoreState extends AllData {
   restoreDistributor: (id: string) => Promise<void>
   deleteDistributor: (id: string) => Promise<DistributorSnapshot | null>
   restoreDistributorSnapshot: (snapshot: DistributorSnapshot) => Promise<void>
+  importFromScanner: (items: ScanDistributor[]) => Promise<ScannerImportResult>
   setSettings: (patch: Partial<Settings>) => void
   seedDemo: () => Promise<void>
   resetAll: () => Promise<void>
@@ -598,6 +601,148 @@ export const useStore = create<StoreState>((set, get) => {
       await db.putDistributor(snapshot.distributor)
       await Promise.all(snapshot.sessions.map((session) => db.putSession(session)))
       await db.putCodes(snapshot.codes)
+    },
+
+    importFromScanner: async (items) => {
+      const state = get()
+      const now = new Date().toISOString()
+
+      const createdDistributors: Distributor[] = []
+      const newSessions: ScanSession[] = []
+      const newCodes: ScanCode[] = []
+      const removedIds = new Set<string>()
+      const touched = new Set<string>()
+      let duplicates = 0
+
+      const byCode = new Map(state.codes.map((record) => [record.code, record]))
+      const createdByName = new Map<string, Distributor>()
+
+      for (const item of items) {
+        const name = item.name.trim()
+        if (!name || !item.codes.length) continue
+
+        const lower = name.toLowerCase()
+        // Prefer an already-created entry, then an active distributor, then any match.
+        let distributor =
+          createdByName.get(lower) ??
+          state.distributors.find(
+            (entry) => !entry.archived && entry.name.toLowerCase() === lower,
+          ) ??
+          state.distributors.find((entry) => entry.name.toLowerCase() === lower)
+        if (!distributor) {
+          const created: Distributor = {
+            id: uid('dist'),
+            name,
+            createdAt: item.date ?? now,
+            updatedAt: now,
+            archived: item.archived,
+            ...(item.archived ? { archivedAt: item.date ?? now } : {}),
+          }
+          distributor = created
+          createdDistributors.push(created)
+          createdByName.set(lower, created)
+        }
+
+        const sessionId = uid('sess')
+        const startedAt = item.date ?? now
+        let stamp = Date.parse(startedAt)
+        if (Number.isNaN(stamp)) stamp = Date.now()
+        let addedHere = 0
+
+        for (const code of item.codes) {
+          const existing = byCode.get(code)
+          if (existing && existing.distributorId === distributor.id) {
+            duplicates += 1
+            continue
+          }
+
+          let movedFrom: ScanCode['movedFrom']
+          if (existing) {
+            removedIds.add(existing.id)
+            movedFrom = {
+              distributorId: existing.distributorId,
+              distributorName:
+                state.distributors.find((entry) => entry.id === existing.distributorId)?.name ?? '',
+            }
+            byCode.delete(code)
+          }
+
+          stamp += 1000
+          const record: ScanCode = {
+            id: uid('code'),
+            code,
+            raw: code,
+            sessionId,
+            distributorId: distributor.id,
+            scannedAt: new Date(Math.min(stamp, Date.now())).toISOString(),
+            source: 'import',
+            ...(movedFrom ? { movedFrom } : {}),
+          }
+          newCodes.push(record)
+          byCode.set(code, record)
+          touched.add(distributor.id)
+          addedHere += 1
+        }
+
+        // Only keep the import session when at least one code was actually added.
+        if (addedHere > 0) {
+          newSessions.push({
+            id: sessionId,
+            distributorId: distributor.id,
+            distributorName: name,
+            startedAt,
+            endedAt: now,
+            status: 'completed',
+            source: 'import',
+          })
+        }
+      }
+
+      if (!newCodes.length) {
+        return { created: 0, updated: 0, added: 0, moved: 0, duplicates }
+      }
+
+      // A code can be re-imported under another distributor within the same
+      // batch; the superseded freshly-created records must not be inserted.
+      const added = newCodes.filter((record) => !removedIds.has(record.id))
+      const sessionIds = new Set(added.map((record) => record.sessionId))
+      const sessions = newSessions.filter((session) => sessionIds.has(session.id))
+
+      const createdIds = new Set(createdDistributors.map((entry) => entry.id))
+      const updatedExisting: Distributor[] = []
+      for (const id of touched) {
+        if (createdIds.has(id)) continue
+        const entry = state.distributors.find((item) => item.id === id)
+        if (entry) updatedExisting.push({ ...entry, updatedAt: now })
+      }
+      const updatedById = new Map(updatedExisting.map((entry) => [entry.id, entry]))
+
+      set((current) => ({
+        distributors: [
+          ...current.distributors.map((entry) => updatedById.get(entry.id) ?? entry),
+          ...createdDistributors,
+        ],
+        sessions: [...current.sessions, ...sessions],
+        codes: [...current.codes.filter((record) => !removedIds.has(record.id)), ...added],
+      }))
+
+      await Promise.all([
+        ...createdDistributors.map((entry) => db.putDistributor(entry)),
+        ...updatedExisting.map((entry) => db.putDistributor(entry)),
+        ...sessions.map((session) => db.putSession(session)),
+        db.putCodes(added),
+      ])
+      if (removedIds.size) await db.deleteCodeRecords(Array.from(removedIds))
+
+      logEvent('import', 'Colis Scanner', String(added.length))
+
+      return {
+        created: createdDistributors.length,
+        updated: updatedExisting.length,
+        added: added.length,
+        moved: removedIds.size,
+        duplicates,
+      }
     },
 
     setSettings: (patch) => {
