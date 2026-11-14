@@ -5455,3 +5455,84 @@ kbd {
   min-width: 0;
 }
 
+/* ---------- Permanent routeur lists + transfer modal ---------- */
+
+.dist-card.is-fixed {
+  border-color: var(--border-accent);
+}
+
+.transfer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.transfer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.transfer-toolbar .search-field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.transfer-selectall {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-soft);
+  cursor: pointer;
+  user-select: none;
+}
+
+.transfer-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.transfer-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 13px;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.transfer-row:first-child {
+  border-top: none;
+}
+
+.transfer-row:hover {
+  background: var(--surface-2);
+}
+
+.transfer-row.is-selected {
+  background: var(--accent-soft);
+}
+
+.transfer-row input[type='checkbox'],
+.transfer-selectall input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.transfer-date {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+

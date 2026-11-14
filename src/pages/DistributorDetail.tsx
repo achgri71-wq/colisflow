@@ -4,6 +4,7 @@ import {
   Archive,
   ArchiveRestore,
   ArrowLeft,
+  ArrowRightLeft,
   CalendarDays,
   Check,
   ChevronDown,
@@ -27,6 +28,7 @@ import { useStore, useActiveSession } from '../store/useStore'
 import { useDialog } from '../components/Dialog'
 import { useToast } from '../components/Toast'
 import { useDistributorActions } from '../hooks/useDistributorActions'
+import { TransferCodesModal } from '../components/TransferCodesModal'
 import { Avatar, Badge, EmptyState, SearchField, StatCard } from '../components/ui'
 import { countSessionCodes, distributorStats, senditSplit } from '../lib/stats'
 import { isSendit } from '../lib/codes'
@@ -112,6 +114,7 @@ export function DistributorDetailPage() {
   const [visible, setVisible] = useState(150)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
   const returnStatuses = useReturnStatuses()
@@ -358,7 +361,11 @@ export function DistributorDetailPage() {
           <div className="detail-title">
             <div className="detail-name-row">
               <h1>{distributor.name}</h1>
-              {distributor.archived ? (
+              {distributor.fixed ? (
+                <Badge tone="accent" dot>
+                  {t('dist.fixed')}
+                </Badge>
+              ) : distributor.archived ? (
                 <Badge tone="muted" dot>
                   {t('archive.badge')}
                 </Badge>
@@ -412,36 +419,49 @@ export function DistributorDetailPage() {
             </button>
             <button
               type="button"
-              className="icon-btn"
-              onClick={() => void actions.rename(distributor)}
-              aria-label={t('dist.rename')}
-              title={t('dist.rename')}
+              className="btn btn-secondary btn-sm"
+              onClick={() => setTransferOpen(true)}
+              disabled={!codesFor.length}
             >
-              <Pencil size={16} />
+              <ArrowRightLeft size={15} />
+              {t('transfer.action')}
             </button>
-            {distributor.archived ? null : (
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => void actions.archive(distributor)}
-                aria-label={t('common.archive')}
-                title={t('common.archive')}
-              >
-                <Archive size={16} />
-              </button>
+            {distributor.fixed ? null : (
+              <>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => void actions.rename(distributor)}
+                  aria-label={t('dist.rename')}
+                  title={t('dist.rename')}
+                >
+                  <Pencil size={16} />
+                </button>
+                {distributor.archived ? null : (
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => void actions.archive(distributor)}
+                    aria-label={t('common.archive')}
+                    title={t('common.archive')}
+                  >
+                    <Archive size={16} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="icon-btn icon-btn-danger"
+                  onClick={async () => {
+                    const removed = await actions.remove(distributor)
+                    if (removed) navigate('/distributors')
+                  }}
+                  aria-label={t('common.delete')}
+                  title={t('common.delete')}
+                >
+                  <Trash size={16} />
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              className="icon-btn icon-btn-danger"
-              onClick={async () => {
-                const removed = await actions.remove(distributor)
-                if (removed) navigate('/distributors')
-              }}
-              aria-label={t('common.delete')}
-              title={t('common.delete')}
-            >
-              <Trash size={16} />
-            </button>
           </div>
         </div>
 
@@ -822,6 +842,12 @@ export function DistributorDetailPage() {
           )}
         </section>
       </div>
+
+      <TransferCodesModal
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        distributor={distributor}
+      />
     </div>
   )
 }

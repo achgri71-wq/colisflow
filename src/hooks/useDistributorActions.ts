@@ -63,6 +63,10 @@ export function useDistributorActions() {
   }
 
   const rename = async (distributor: Distributor) => {
+    if (distributor.fixed) {
+      toast.push({ message: t('dist.fixedProtected'), tone: 'info' })
+      return false
+    }
     const next = await dialog.prompt({
       title: t('dist.renameTitle'),
       label: t('dist.renameLabel'),
@@ -91,6 +95,10 @@ export function useDistributorActions() {
   }
 
   const archive = async (distributor: Distributor) => {
+    if (distributor.fixed) {
+      toast.push({ message: t('dist.fixedProtected'), tone: 'info' })
+      return false
+    }
     const confirmed = await dialog.confirm({
       title: t('dist.archiveTitle'),
       message: t('dist.archiveMsg', { name: distributor.name }),
@@ -110,6 +118,10 @@ export function useDistributorActions() {
   }
 
   const remove = async (distributor: Distributor) => {
+    if (distributor.fixed) {
+      toast.push({ message: t('dist.fixedProtected'), tone: 'info' })
+      return false
+    }
     const count = codes.filter((code) => code.distributorId === distributor.id).length
     const confirmed = await dialog.confirm({
       title: t('dist.deleteTitle'),

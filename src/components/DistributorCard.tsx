@@ -103,7 +103,7 @@ export function DistributorCard({
   const sessionsLabel = stats.sessions === 1 ? t('common.session') : t('common.sessions')
 
   return (
-    <article className={cx('dist-card', archived && 'is-archived')}>
+    <article className={cx('dist-card', archived && 'is-archived', distributor.fixed && 'is-fixed')}>
       <div className="dist-card-top">
         <span className="dist-avatar">
           <span className="dist-avatar-ring" />
@@ -114,6 +114,11 @@ export function DistributorCard({
             {distributor.name}
           </Link>
           <div className="dist-meta">
+            {distributor.fixed ? (
+              <Badge tone="accent" dot>
+                {t('dist.fixed')}
+              </Badge>
+            ) : null}
             {archived ? (
               <Badge tone="muted" dot>
                 {t('archive.badge')}
@@ -127,35 +132,45 @@ export function DistributorCard({
         </div>
         <CardMenu
           label={t('dist.more')}
-          items={[
-            {
-              label: t('dist.rename'),
-              icon: <Pencil size={15} />,
-              onClick: onRename,
-            },
-            {
-              label: t('dist.export'),
-              icon: <Download size={15} />,
-              onClick: onExport,
-            },
-            archived
-              ? {
-                  label: t('common.restore'),
-                  icon: <ArchiveRestore size={15} />,
-                  onClick: onRestore,
-                }
-              : {
-                  label: t('common.archive'),
-                  icon: <Archive size={15} />,
-                  onClick: onArchive,
-                },
-            {
-              label: t('common.delete'),
-              icon: <Trash2 size={15} />,
-              onClick: onDelete,
-              tone: 'danger',
-            },
-          ]}
+          items={
+            distributor.fixed
+              ? [
+                  {
+                    label: t('dist.export'),
+                    icon: <Download size={15} />,
+                    onClick: onExport,
+                  },
+                ]
+              : [
+                  {
+                    label: t('dist.rename'),
+                    icon: <Pencil size={15} />,
+                    onClick: onRename,
+                  },
+                  {
+                    label: t('dist.export'),
+                    icon: <Download size={15} />,
+                    onClick: onExport,
+                  },
+                  archived
+                    ? {
+                        label: t('common.restore'),
+                        icon: <ArchiveRestore size={15} />,
+                        onClick: onRestore,
+                      }
+                    : {
+                        label: t('common.archive'),
+                        icon: <Archive size={15} />,
+                        onClick: onArchive,
+                      },
+                  {
+                    label: t('common.delete'),
+                    icon: <Trash2 size={15} />,
+                    onClick: onDelete,
+                    tone: 'danger',
+                  },
+                ]
+          }
         />
       </div>
 

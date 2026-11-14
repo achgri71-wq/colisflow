@@ -6,6 +6,7 @@ import type {
   BulkAddResult,
   CodeSource,
   Distributor,
+  MoveCodesResult,
   ScanCode,
   ScanDistributor,
   ScanSession,
@@ -16,6 +17,7 @@ import * as db from '../lib/db'
 import type { AllData } from '../lib/db'
 import { DEFAULT_SENDIT_PREFIXES, extractCode, uniqueCodes } from '../lib/codes'
 import { buildDemoData } from '../lib/demo'
+import { FIXED_LISTS } from '../lib/fixedLists'
 import { DEFAULT_SUD_URL } from '../lib/sud'
 import { uid } from '../lib/utils'
 
@@ -58,6 +60,54 @@ function persistSettings(settings: Settings): void {
   }
 }
 
+/**
+ * Guarantees the six permanent routeur lists exist, are active and flagged as
+ * fixed. Existing distributors that happen to share a fixed name are adopted
+ * (and restored from the archive) instead of being duplicated.
+ */
+function ensureFixedDistributors(distributors: Distributor[]): {
+  distributors: Distributor[]
+  created: Distributor[]
+  updated: Distributor[]
+} {
+  const now = new Date().toISOString()
+  const result = [...distributors]
+  const created: Distributor[] = []
+  const updated: Distributor[] = []
+
+  for (const fixed of FIXED_LISTS) {
+    const index = result.findIndex(
+      (item) => item.name.trim().toLowerCase() === fixed.name.toLowerCase(),
+    )
+    if (index === -1) {
+      const entry: Distributor = {
+        id: fixed.id,
+        name: fixed.name,
+        createdAt: now,
+        updatedAt: now,
+        archived: false,
+        fixed: true,
+      }
+      result.push(entry)
+      created.push(entry)
+      continue
+    }
+    const existing = result[index]
+    if (!existing.fixed || existing.archived) {
+      const entry: Distributor = {
+        ...existing,
+        fixed: true,
+        archived: false,
+        archivedAt: undefined,
+      }
+      result[index] = entry
+      updated.push(entry)
+    }
+  }
+
+  return { distributors: result, created, updated }
+}
+
 export interface DistributorSnapshot {
   distributor: Distributor
   sessions: ScanSession[]
@@ -76,6 +126,7 @@ interface StoreState extends AllData {
   startSession: (name: string, source?: CodeSource) => ScanSession | null
   addCode: (raw: string, source?: CodeSource) => AddCodeResult
   addCodes: (rawCodes: string[], source?: CodeSource) => BulkAddResult
+  moveCodesToDistributor: (codeIds: string[], targetDistributorId: string) => MoveCodesResult
   deleteCode: (id: string) => ScanCode | null
   restoreCode: (code: ScanCode) => boolean
   finishSession: () => Promise<boolean>
@@ -151,7 +202,10 @@ export const useStore = create<StoreState>((set, get) => {
             const fixed = sessions.filter((session) => session.id !== keep.id && actives.some((a) => a.id === session.id))
             fixed.forEach((session) => void db.putSession(session))
           }
-          set({ ...data, sessions, ready: true })
+          const ensured = ensureFixedDistributors(data.distributors)
+          set({ ...data, distributors: ensured.distributors, sessions, ready: true })
+          ensured.created.forEach((entry) => void db.putDistributor(entry))
+          ensured.updated.forEach((entry) => void db.putDistributor(entry))
         } catch (error) {
           console.error('Failed to load local data', error)
           set({ ready: true })
@@ -403,6 +457,91 @@ export const useStore = create<StoreState>((set, get) => {
       }
     },
 
+    moveCodesToDistributor: (codeIds, targetDistributorId) => {
+      const state = get()
+      const target = state.distributors.find((item) => item.id === targetDistributorId)
+      if (!target) return { moved: 0, merged: 0 }
+      const ids = new Set(codeIds)
+      const selected = state.codes.filter(
+        (code) => ids.has(code.id) && code.distributorId !== target.id,
+      )
+      if (!selected.length) return { moved: 0, merged: 0 }
+
+      const now = new Date().toISOString()
+      const names = new Map(state.distributors.map((item) => [item.id, item.name]))
+      const targetCodes = new Set(
+        state.codes.filter((code) => code.distributorId === target.id).map((code) => code.code),
+      )
+
+      const active = state.sessions.find(
+        (session) => session.status === 'active' && session.distributorId === target.id,
+      )
+      let sessionId = active?.id ?? ''
+      let newSession: ScanSession | null = null
+      if (!sessionId) {
+        newSession = {
+          id: uid('sess'),
+          distributorId: target.id,
+          distributorName: target.name,
+          startedAt: now,
+          endedAt: now,
+          status: 'completed',
+          source: 'manual',
+        }
+        sessionId = newSession.id
+      }
+
+      const removedIds = new Set<string>()
+      const moved: ScanCode[] = []
+      for (const code of selected) {
+        if (targetCodes.has(code.code)) {
+          // The target already holds this code: drop the source record.
+          removedIds.add(code.id)
+          continue
+        }
+        targetCodes.add(code.code)
+        moved.push({
+          ...code,
+          sessionId,
+          distributorId: target.id,
+          movedFrom: {
+            distributorId: code.distributorId,
+            distributorName: names.get(code.distributorId) ?? '',
+          },
+        })
+      }
+
+      const movedIds = new Set(moved.map((code) => code.id))
+      const updatedTarget: Distributor = { ...target, updatedAt: now }
+
+      set((current) => ({
+        codes: [
+          ...current.codes.filter(
+            (code) => !removedIds.has(code.id) && !movedIds.has(code.id),
+          ),
+          ...moved,
+        ],
+        sessions: newSession ? [newSession, ...current.sessions] : current.sessions,
+        distributors: current.distributors.map((item) =>
+          item.id === target.id ? updatedTarget : item,
+        ),
+      }))
+
+      if (removedIds.size) void db.deleteCodeRecords(Array.from(removedIds))
+      if (moved.length) void db.putCodes(moved)
+      if (newSession) void db.putSession(newSession)
+      persistDistributor(updatedTarget)
+
+      if (moved.length) {
+        logEvent(
+          'code_move',
+          moved.length === 1 ? moved[0].code : `${moved.length} codes`,
+          `→ ${target.name}`,
+        )
+      }
+      return { moved: moved.length, merged: removedIds.size }
+    },
+
     deleteCode: (id) => {
       const code = get().codes.find((item) => item.id === id)
       if (!code) return null
@@ -494,6 +633,7 @@ export const useStore = create<StoreState>((set, get) => {
       const now = new Date().toISOString()
       const distributor = state.distributors.find((item) => item.id === id)
       if (!distributor) return false
+      if (distributor.fixed) return false
       const updated = { ...distributor, name: cleanName, updatedAt: now }
       const sessions = state.sessions
         .filter((session) => session.distributorId === id)
@@ -525,6 +665,7 @@ export const useStore = create<StoreState>((set, get) => {
       const state = get()
       const distributor = state.distributors.find((item) => item.id === id)
       if (!distributor) return
+      if (distributor.fixed) return
       const now = new Date().toISOString()
       const updated: Distributor = { ...distributor, archived: true, archivedAt: now, updatedAt: now }
       const active = state.sessions.find(
@@ -565,6 +706,7 @@ export const useStore = create<StoreState>((set, get) => {
       const state = get()
       const distributor = state.distributors.find((item) => item.id === id)
       if (!distributor) return null
+      if (distributor.fixed) return null
       const sessions = state.sessions.filter((session) => session.distributorId === id)
       const codes = state.codes.filter((code) => code.distributorId === id)
       set((current) => ({
@@ -766,13 +908,16 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     resetAll: async () => {
-      set({ distributors: [], sessions: [], codes: [], events: [] })
+      const ensured = ensureFixedDistributors([])
+      set({ distributors: ensured.distributors, sessions: [], codes: [], events: [] })
       await db.clearAllData()
+      await Promise.all(ensured.created.map((entry) => db.putDistributor(entry)))
     },
 
     importData: async (data, settingsPatch) => {
+      const ensured = ensureFixedDistributors(data.distributors ?? [])
       const normalized: AllData = {
-        distributors: data.distributors ?? [],
+        distributors: ensured.distributors,
         sessions: data.sessions ?? [],
         codes: data.codes ?? [],
         events: (data.events ?? []).slice(0, 250),

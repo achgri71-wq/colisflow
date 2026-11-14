@@ -12,6 +12,8 @@ export interface Distributor {
   updatedAt: string
   archived: boolean
   archivedAt?: string
+  /** Permanent routeur list: never archived, renamed or deleted. */
+  fixed?: boolean
 }
 
 export interface ScanSession {
@@ -100,6 +102,11 @@ export interface BulkAddResult {
   movedList: { code: string; from: string }[]
   newCodes: ScanCode[]
   removed: ScanCode[]
+}
+
+export interface MoveCodesResult {
+  moved: number
+  merged: number
 }
 
 export interface ScannerImportResult {

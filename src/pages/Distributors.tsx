@@ -50,6 +50,7 @@ export function DistributorsPage() {
         )
       })
       .sort((a, b) => {
+        if (Boolean(a.fixed) !== Boolean(b.fixed)) return a.fixed ? -1 : 1
         if (a.archived !== b.archived) return a.archived ? 1 : -1
         return b.updatedAt.localeCompare(a.updatedAt)
       })
