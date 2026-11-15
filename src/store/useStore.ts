@@ -12,6 +12,7 @@ import type {
   ScanSession,
   ScannerImportResult,
   Settings,
+  SyncLogEntry,
 } from '../types'
 import * as db from '../lib/db'
 import type { AllData } from '../lib/db'
@@ -19,6 +20,7 @@ import { DEFAULT_SENDIT_PREFIXES, extractCode, uniqueCodes } from '../lib/codes'
 import { buildDemoData } from '../lib/demo'
 import { FIXED_LISTS, isFixedListName, normalizeFixedName } from '../lib/fixedLists'
 import { DEFAULT_SUD_URL } from '../lib/sud'
+import { appendSyncLog, loadSyncLog, persistSyncLog } from '../lib/syncLog'
 import { uid } from '../lib/utils'
 
 const SETTINGS_KEY = 'colisflow.settings'
@@ -122,6 +124,8 @@ export interface CancelledSessionSnapshot {
 interface StoreState extends AllData {
   ready: boolean
   settings: Settings
+  /** Recent Colis Scanner → ColisFlow sync runs, newest first. */
+  syncLog: SyncLogEntry[]
   init: () => Promise<void>
   startSession: (name: string, source?: CodeSource) => ScanSession | null
   addCode: (raw: string, source?: CodeSource) => AddCodeResult
@@ -143,6 +147,8 @@ interface StoreState extends AllData {
   deleteDistributor: (id: string) => Promise<DistributorSnapshot | null>
   restoreDistributorSnapshot: (snapshot: DistributorSnapshot) => Promise<void>
   importFromScanner: (items: ScanDistributor[]) => Promise<ScannerImportResult>
+  /** Records one Colis Scanner → ColisFlow sync run for the activity panel. */
+  logSync: (entry: Omit<SyncLogEntry, 'id' | 'at'> & { at?: string }) => void
   setSettings: (patch: Partial<Settings>) => void
   seedDemo: () => Promise<void>
   resetAll: () => Promise<void>
@@ -182,6 +188,7 @@ export const useStore = create<StoreState>((set, get) => {
     sessions: [],
     codes: [],
     events: [],
+    syncLog: loadSyncLog(),
     settings: loadSettings(),
 
     init: async () => {
@@ -975,6 +982,22 @@ export const useStore = create<StoreState>((set, get) => {
       }
     },
 
+    logSync: (entry) => {
+      const full: SyncLogEntry = {
+        id: uid('sync'),
+        at: entry.at ?? new Date().toISOString(),
+        status: entry.status,
+        lists: entry.lists,
+        codes: entry.codes,
+        added: entry.added,
+        moved: entry.moved,
+        ...(entry.message ? { message: entry.message } : {}),
+      }
+      const next = appendSyncLog(get().syncLog, full)
+      set({ syncLog: next })
+      persistSyncLog(next)
+    },
+
     setSettings: (patch) => {
       const settings = { ...get().settings, ...patch }
       set({ settings })
@@ -997,7 +1020,8 @@ export const useStore = create<StoreState>((set, get) => {
 
     resetAll: async () => {
       const ensured = ensureFixedDistributors([])
-      set({ distributors: ensured.distributors, sessions: [], codes: [], events: [] })
+      set({ distributors: ensured.distributors, sessions: [], codes: [], events: [], syncLog: [] })
+      persistSyncLog([])
       await db.clearAllData()
       await Promise.all(ensured.created.map((entry) => db.putDistributor(entry)))
     },

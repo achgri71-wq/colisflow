@@ -9,6 +9,7 @@ import {
   getScannerAuth,
   parseReturnStatuses,
   saveReturnStatuses,
+  scannerErrorKey,
 } from '../lib/colisScanner'
 import { formatNumber } from '../lib/utils'
 
@@ -73,6 +74,7 @@ function onLinkUpdate(handler: () => void): () => void {
  */
 export function useScannerAutoSync(enabled: boolean): void {
   const importFromScanner = useStore((state) => state.importFromScanner)
+  const logSync = useStore((state) => state.logSync)
   const toast = useToast()
   const { t, lang } = useI18n()
 
@@ -80,6 +82,8 @@ export function useScannerAutoSync(enabled: boolean): void {
   const lastSync = useRef(0)
   const importRef = useRef(importFromScanner)
   importRef.current = importFromScanner
+  const logRef = useRef(logSync)
+  logRef.current = logSync
   const localeRef = useRef({ t, lang })
   localeRef.current = { t, lang }
 
@@ -117,8 +121,15 @@ export function useScannerAutoSync(enabled: boolean): void {
         }
       }
 
-      if (!hasScanner || !navigator.onLine) {
+      if (!hasScanner) {
         await publishLink()
+        logRef.current({ status: 'no-account', lists: 0, codes: 0, added: 0, moved: 0 })
+        return
+      }
+
+      if (!navigator.onLine) {
+        await publishLink()
+        logRef.current({ status: 'offline', lists: 0, codes: 0, added: 0, moved: 0 })
         return
       }
 
@@ -134,6 +145,13 @@ export function useScannerAutoSync(enabled: boolean): void {
         if (stopped) return
         lastSync.current = Date.now()
         const result = await importRef.current(items)
+        logRef.current({
+          status: 'ok',
+          lists: items.length,
+          codes: items.reduce((sum, item) => sum + item.codes.length, 0),
+          added: result.added,
+          moved: result.moved,
+        })
         if (result.added > 0 || result.moved > 0) {
           const { t: translate, lang: language } = localeRef.current
           toast.push({
@@ -147,8 +165,17 @@ export function useScannerAutoSync(enabled: boolean): void {
             duration: 7000,
           })
         }
-      } catch {
-        /* offline or expired session: silent, retried later */
+      } catch (cause) {
+        // Offline or expired session: silent for the operator, recorded for the
+        // activity panel so a broken link is visible instead of invisible.
+        logRef.current({
+          status: 'error',
+          lists: 0,
+          codes: 0,
+          added: 0,
+          moved: 0,
+          message: scannerErrorKey(cause),
+        })
       } finally {
         // Do not let a failed ColisScan request block ColisFlow → RSP sync.
         await publishLink()

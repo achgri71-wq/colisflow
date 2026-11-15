@@ -128,3 +128,22 @@ export interface ScanDistributor {
   date?: string
   archived: boolean
 }
+
+export type SyncStatus = 'ok' | 'error' | 'no-account' | 'offline'
+
+/** One Colis Scanner → ColisFlow sync run, kept for the activity panel. */
+export interface SyncLogEntry {
+  id: string
+  at: string
+  status: SyncStatus
+  /** Distributor lists returned by Colis Scanner. */
+  lists: number
+  /** Codes present in the Colis Scanner payload. */
+  codes: number
+  /** Codes newly added to ColisFlow by this run. */
+  added: number
+  /** Codes moved between lists by this run. */
+  moved: number
+  /** Translation key describing a failure. */
+  message?: string
+}
