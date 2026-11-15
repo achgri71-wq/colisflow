@@ -7,7 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'auto',
+      // 'autoUpdate' (not 'auto'): a new deployment activates and reloads the
+      // app by itself. The old invalid value silently fell back to 'prompt',
+      // which left installed phones stuck on a stale build that no longer
+      // published to the shared ColisFlow link.
+      registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'ColisFlow — Gestion de colis',
@@ -34,6 +38,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
+        // Take control of open pages as soon as a new build is installed.
+        skipWaiting: true,
+        clientsClaim: true,
       },
       devOptions: { enabled: false },
     }),
