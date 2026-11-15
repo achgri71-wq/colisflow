@@ -264,21 +264,38 @@ export function normalizeScanDistributors(raw: unknown): ScanDistributor[] {
 /** Compacts the local distributor data for publication. */
 export function buildFlowPayload(
   distributors: { id: string; name: string; updatedAt: string; archived: boolean }[],
-  codes: { code: string; distributorId: string }[],
-): { distributors: { name: string; codes: string[]; date: string; archived: boolean }[] } {
-  const byDistributor = new Map<string, string[]>()
+  codes: { code: string; distributorId: string; scannedAt: string }[],
+): {
+  distributors: {
+    name: string
+    codes: string[]
+    dates?: string[]
+    date: string
+    archived: boolean
+  }[]
+} {
+  const byDistributor = new Map<string, { code: string; at: string }[]>()
   for (const record of codes) {
     const list = byDistributor.get(record.distributorId)
-    if (list) list.push(record.code)
-    else byDistributor.set(record.distributorId, [record.code])
+    if (list) list.push({ code: record.code, at: record.scannedAt })
+    else byDistributor.set(record.distributorId, [{ code: record.code, at: record.scannedAt }])
   }
   return {
-    distributors: distributors.map((entry) => ({
-      name: entry.name,
-      codes: Array.from(new Set(byDistributor.get(entry.id) ?? [])),
-      date: entry.updatedAt,
-      archived: entry.archived,
-    })),
+    distributors: distributors.map((entry) => {
+      // Keep the first scan date of every code, aligned with the codes array.
+      const rows = byDistributor.get(entry.id) ?? []
+      const seen = new Map<string, string>()
+      for (const row of rows) {
+        if (!seen.has(row.code)) seen.set(row.code, row.at)
+      }
+      return {
+        name: entry.name,
+        codes: Array.from(seen.keys()),
+        dates: Array.from(seen.values()),
+        date: entry.updatedAt,
+        archived: entry.archived,
+      }
+    }),
   }
 }
 
