@@ -3,6 +3,7 @@ import { openDB, type IDBPDatabase } from 'idb'
 import { useI18n } from '../i18n'
 import { useStore } from '../store/useStore'
 import { useToast } from '../components/Toast'
+import { getCloudLinkSlot, putCloudLinkSlot } from '../lib/cloudLink'
 import {
   buildFlowPayload,
   fetchScanDistributors,
@@ -67,10 +68,9 @@ function onLinkUpdate(handler: () => void): () => void {
  * Background bridges:
  * 1. Colis Scanner: its shared distributor lists are fetched and merged into
  *    ColisFlow automatically when a Colis Scanner account is connected.
- * 2. Return Scanner Pro: both apps are hosted on the same origin, so they
- *    share the browser storage — ColisFlow publishes its distributor lists
- *    into the shared database and reads back the return statuses RSP
- *    published. No server, works offline, instant via BroadcastChannel.
+ * 2. Return Scanner Pro: publish distributor lists and read return statuses
+ *    through TextDB for cross-device sync, while keeping IndexedDB and
+ *    BroadcastChannel as the instant same-browser/offline path.
  */
 export function useScannerAutoSync(enabled: boolean): void {
   const importFromScanner = useStore((state) => state.importFromScanner)
@@ -93,16 +93,40 @@ export function useScannerAutoSync(enabled: boolean): void {
 
     const syncLink = async () => {
       const state = useStore.getState()
+      const flowPayload = buildFlowPayload(state.distributors, state.codes)
+      const flowAt = new Date().toISOString()
       await getLinkDB().then((db) =>
         db.put('slots', {
           slot: 'flow',
-          at: new Date().toISOString(),
-          data: buildFlowPayload(state.distributors, state.codes),
+          at: flowAt,
+          data: flowPayload,
         }),
       )
       notify()
-      const rsp = await getLinkDB().then((db) => db.get('slots', 'rsp'))
-      if (!stopped && rsp) saveReturnStatuses(parseReturnStatuses(rsp.data))
+
+      // Keep the same-device link for instant updates, and publish the exact
+      // same snapshot to TextDB so RSP can import it from another device.
+      try {
+        await putCloudLinkSlot('flow', flowPayload)
+      } catch (error) {
+        console.warn('ColisFlow cloud publish failed:', error)
+      }
+
+      try {
+        const cloudRsp = await getCloudLinkSlot('rsp')
+        if (!stopped && cloudRsp) {
+          saveReturnStatuses(parseReturnStatuses(cloudRsp.data))
+          await getLinkDB().then((db) =>
+            db.put('slots', { slot: 'rsp', at: cloudRsp.at, data: cloudRsp.data }),
+          )
+          return
+        }
+      } catch (error) {
+        console.warn('RSP cloud status read failed:', error)
+      }
+
+      const localRsp = await getLinkDB().then((db) => db.get('slots', 'rsp'))
+      if (!stopped && localRsp) saveReturnStatuses(parseReturnStatuses(localRsp.data))
     }
 
     const sync = async () => {
@@ -113,8 +137,8 @@ export function useScannerAutoSync(enabled: boolean): void {
       const publishLink = async () => {
         if (stopped) return
         try {
-          // ColisFlow ↔ RSP uses local shared storage, not Firebase/network.
-          // Always publish local data even when ColisScan auth/network fails.
+          // Always publish to the local link and cloud even when ColisScan
+          // authentication/network access is unavailable.
           await syncLink()
         } catch {
           /* local link will be retried on the next tick/state change */

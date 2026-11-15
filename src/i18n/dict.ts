@@ -1,7 +1,7 @@
 export const fr = {
   'app.name': 'ColisFlow',
   'app.tagline': 'Scan. Organisez. Livrez.',
-  'footer.local': 'Local-first · aucune donnée envoyée',
+  'footer.local': 'Local-first · synchronisation RSP via TextDB',
   'nav.scan': 'Scanner',
   'nav.distributors': 'Distributeurs',
   'nav.search': 'Recherche',
@@ -310,7 +310,7 @@ export const fr = {
   'settings.iosHint': 'Sur iPhone : bouton Partager → « Sur l’écran d’accueil ».',
   'settings.about': 'À propos',
   'settings.aboutText':
-    'ColisFlow est une application local-first. Vos données ne quittent pas cet appareil.',
+    'ColisFlow reste local-first, mais publie listes, codes et téléphones sur TextDB pour RSP. Ce lien public permet à quiconque le possède de lire et modifier ces données.',
   'settings.version': 'Version',
   'settings.shortcuts': 'Raccourcis clavier',
   'settings.shortcutSearch': 'Recherche globale',
@@ -322,7 +322,7 @@ export const fr = {
   'settings.storageUnavailable': 'Estimation indisponible',
   'settings.privacy': 'Confidentialité',
   'settings.privacyText':
-    'Aucun compte, aucun serveur : les données restent dans IndexedDB sur cet appareil. Exportez régulièrement une sauvegarde.',
+    'Les données complètes restent sur cet appareil. Les listes, codes et téléphones sont aussi publiés sans chiffrement sur un lien TextDB public pour la synchronisation avec RSP; toute personne ayant le lien peut les lire et les modifier. Exportez régulièrement une sauvegarde.',
   'settings.keepAwakeUnsupported': 'Non disponible sur ce navigateur',
 
   'activity.session_start': 'Session démarrée · {subject}',
@@ -438,7 +438,7 @@ type Dictionary = Record<TranslationKey, string>
 const en: Dictionary = {
   'app.name': 'ColisFlow',
   'app.tagline': 'Scan. Organize. Deliver.',
-  'footer.local': 'Local-first · no data leaves this device',
+  'footer.local': 'Local-first · RSP sync via TextDB',
   'nav.scan': 'Scanner',
   'nav.distributors': 'Distributors',
   'nav.search': 'Search',
@@ -742,7 +742,7 @@ const en: Dictionary = {
   'settings.installed': 'App installed',
   'settings.iosHint': 'On iPhone: Share button → “Add to Home Screen”.',
   'settings.about': 'About',
-  'settings.aboutText': 'ColisFlow is a local-first app. Your data never leaves this device.',
+  'settings.aboutText': 'ColisFlow stays local-first, but publishes lists, codes, and phone numbers to TextDB for RSP. Anyone with the public link can read and change that data.',
   'settings.version': 'Version',
   'settings.shortcuts': 'Keyboard shortcuts',
   'settings.shortcutSearch': 'Global search',
@@ -754,7 +754,7 @@ const en: Dictionary = {
   'settings.storageUnavailable': 'Estimate unavailable',
   'settings.privacy': 'Privacy',
   'settings.privacyText':
-    'No account, no server: data stays in IndexedDB on this device. Export a backup regularly.',
+    'Full data stays on this device. Lists, codes, and phone numbers are also published unencrypted to a public TextDB link for RSP sync; anyone with the link can read and edit them. Export a backup regularly.',
   'settings.keepAwakeUnsupported': 'Not available in this browser',
 
   'activity.session_start': 'Session started · {subject}',
@@ -868,7 +868,7 @@ const en: Dictionary = {
 const ar: Dictionary = {
   'app.name': 'ColisFlow',
   'app.tagline': 'امسح. نظّم. سلّم.',
-  'footer.local': 'محلي أولاً · لا تغادر بياناتك هذا الجهاز',
+  'footer.local': 'محلي أولاً · مزامنة RSP عبر TextDB',
   'nav.scan': 'المسح',
   'nav.distributors': 'الموزعون',
   'nav.search': 'البحث',
@@ -1171,7 +1171,7 @@ const ar: Dictionary = {
   'settings.installed': 'التطبيق مثبّت',
   'settings.iosHint': 'على iPhone: زر المشاركة ← «إضافة إلى الشاشة الرئيسية».',
   'settings.about': 'حول التطبيق',
-  'settings.aboutText': 'ColisFlow تطبيق محلي أولاً. لا تغادر بياناتك هذا الجهاز.',
+  'settings.aboutText': 'يعمل ColisFlow محلياً، لكنه ينشر القوائم والأكواد وأرقام الهاتف في TextDB لربطه بـRSP. كل من لديه الرابط العام يستطيع قراءة هذه البيانات وتعديلها.',
   'settings.version': 'الإصدار',
   'settings.shortcuts': 'اختصارات لوحة المفاتيح',
   'settings.shortcutSearch': 'بحث شامل',
@@ -1183,7 +1183,7 @@ const ar: Dictionary = {
   'settings.storageUnavailable': 'التقدير غير متاح',
   'settings.privacy': 'الخصوصية',
   'settings.privacyText':
-    'لا حساب ولا خادم: تبقى البيانات في IndexedDB على هذا الجهاز. صدّر نسخة احتياطية بانتظام.',
+    'تبقى البيانات كاملة على هذا الجهاز. تُنشر القوائم والأكواد وأرقام الهاتف أيضاً دون تشفير في رابط TextDB عام لمزامنتها مع RSP؛ كل من لديه الرابط يستطيع قراءتها وتعديلها. صدّر نسخة احتياطية بانتظام.',
   'settings.keepAwakeUnsupported': 'غير متاح في هذا المتصفح',
 
   'activity.session_start': 'بدأت الجلسة · {subject}',
