@@ -103,14 +103,28 @@ export function useScannerAutoSync(enabled: boolean): void {
 
     const sync = async () => {
       if (stopped || busy.current) return
-      if (!navigator.onLine) return
       if (document.visibilityState !== 'visible') return
-      if (Date.now() - lastSync.current < MIN_GAP_MS) return
 
       const hasScanner = Boolean(getScannerAuth())
-      if (!hasScanner) {
-        // The shared link needs no network — still run it on the schedule.
-        if (!stopped) await syncLink()
+      const publishLink = async () => {
+        if (stopped) return
+        try {
+          // ColisFlow ↔ RSP uses local shared storage, not Firebase/network.
+          // Always publish local data even when ColisScan auth/network fails.
+          await syncLink()
+        } catch {
+          /* local link will be retried on the next tick/state change */
+        }
+      }
+
+      if (!hasScanner || !navigator.onLine) {
+        await publishLink()
+        return
+      }
+
+      if (Date.now() - lastSync.current < MIN_GAP_MS) {
+        // Scanner fetches are rate-limited, but local link publishing is not.
+        await publishLink()
         return
       }
 
@@ -133,10 +147,11 @@ export function useScannerAutoSync(enabled: boolean): void {
             duration: 7000,
           })
         }
-        if (!stopped) await syncLink()
       } catch {
         /* offline or expired session: silent, retried later */
       } finally {
+        // Do not let a failed ColisScan request block ColisFlow → RSP sync.
+        await publishLink()
         busy.current = false
       }
     }
