@@ -17,7 +17,7 @@ import * as db from '../lib/db'
 import type { AllData } from '../lib/db'
 import { DEFAULT_SENDIT_PREFIXES, extractCode, uniqueCodes } from '../lib/codes'
 import { buildDemoData } from '../lib/demo'
-import { FIXED_LISTS, isFixedListName } from '../lib/fixedLists'
+import { FIXED_LISTS, isFixedListName, normalizeFixedName } from '../lib/fixedLists'
 import { DEFAULT_SUD_URL } from '../lib/sud'
 import { uid } from '../lib/utils'
 
@@ -77,7 +77,7 @@ function ensureFixedDistributors(distributors: Distributor[]): {
 
   for (const fixed of FIXED_LISTS) {
     const index = result.findIndex(
-      (item) => item.name.trim().toLowerCase() === fixed.name.toLowerCase(),
+      (item) => normalizeFixedName(item.name) === normalizeFixedName(fixed.name),
     )
     if (index === -1) {
       const entry: Distributor = {

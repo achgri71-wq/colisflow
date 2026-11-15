@@ -263,7 +263,14 @@ export function normalizeScanDistributors(raw: unknown): ScanDistributor[] {
 
 /** Compacts the local distributor data for publication. */
 export function buildFlowPayload(
-  distributors: { id: string; name: string; phone?: string; updatedAt: string; archived: boolean }[],
+  distributors: {
+    id: string
+    name: string
+    phone?: string
+    updatedAt: string
+    archived: boolean
+    fixed?: boolean
+  }[],
   codes: {
     code: string
     distributorId: string
@@ -279,6 +286,7 @@ export function buildFlowPayload(
     since?: string[]
     date: string
     archived: boolean
+    fixed?: boolean
   }[]
 } {
   const byDistributor = new Map<string, { code: string; at: string; since: string }[]>()
@@ -309,6 +317,9 @@ export function buildFlowPayload(
         since: values.map((value) => value.since),
         date: entry.updatedAt,
         archived: entry.archived,
+        // Lets Return Scanner Pro recognise a routeur list even when the
+        // operator renamed it, instead of matching by name only.
+        ...(entry.fixed ? { fixed: true } : {}),
       }
     }),
   }
