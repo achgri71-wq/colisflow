@@ -129,6 +129,10 @@ interface StoreState extends AllData {
   moveCodesToDistributor: (codeIds: string[], targetDistributorId: string) => MoveCodesResult
   deleteCode: (id: string) => ScanCode | null
   restoreCode: (code: ScanCode) => boolean
+  /** Sets a code's entry date by hand; a manual date also drives the late count. */
+  setCodeDate: (id: string, scannedAt: string) => boolean
+  /** Sets the same entry date on every code held by one distributor. */
+  setDistributorCodeDates: (distributorId: string, scannedAt: string) => number
   finishSession: () => Promise<boolean>
   cancelSession: () => Promise<CancelledSessionSnapshot | null>
   restoreSession: (snapshot: CancelledSessionSnapshot) => void
@@ -567,6 +571,47 @@ export const useStore = create<StoreState>((set, get) => {
       set((current) => ({ codes: [...current.codes, code] }))
       void db.putCode(code)
       return true
+    },
+
+    setCodeDate: (id, scannedAt) => {
+      const code = get().codes.find((item) => item.id === id)
+      if (!code || Number.isNaN(Date.parse(scannedAt))) return false
+      const { movedFrom, ...rest } = code
+      const updated: ScanCode = {
+        ...rest,
+        scannedAt,
+        // A hand-set date wins for the late count too, so a moved code does not
+        // keep restarting from its old move date against the operator's will.
+        ...(movedFrom ? { movedFrom: { ...movedFrom, movedAt: scannedAt } } : {}),
+      }
+      set((current) => ({
+        codes: current.codes.map((item) => (item.id === id ? updated : item)),
+      }))
+      void db.putCode(updated)
+      logEvent('code_date', updated.code, scannedAt)
+      return true
+    },
+
+    setDistributorCodeDates: (distributorId, scannedAt) => {
+      if (Number.isNaN(Date.parse(scannedAt))) return 0
+      const targets = get().codes.filter((item) => item.distributorId === distributorId)
+      if (!targets.length) return 0
+      const updated = targets.map((code) => {
+        const { movedFrom, ...rest } = code
+        const next: ScanCode = {
+          ...rest,
+          scannedAt,
+          ...(movedFrom ? { movedFrom: { ...movedFrom, movedAt: scannedAt } } : {}),
+        }
+        return next
+      })
+      const byId = new Map(updated.map((code) => [code.id, code]))
+      set((current) => ({
+        codes: current.codes.map((item) => byId.get(item.id) ?? item),
+      }))
+      void Promise.all(updated.map((code) => db.putCode(code)))
+      logEvent('code_date', '', String(updated.length))
+      return updated.length
     },
 
     finishSession: async () => {

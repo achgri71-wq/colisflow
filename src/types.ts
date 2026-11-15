@@ -48,6 +48,7 @@ export type ActivityType =
   | 'session_cancel'
   | 'code_move'
   | 'code_delete'
+  | 'code_date'
   | 'distributor_rename'
   | 'distributor_archive'
   | 'distributor_restore'

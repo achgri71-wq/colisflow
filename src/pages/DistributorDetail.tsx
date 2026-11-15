@@ -29,6 +29,7 @@ import { useDialog } from '../components/Dialog'
 import { useToast } from '../components/Toast'
 import { useDistributorActions } from '../hooks/useDistributorActions'
 import { TransferCodesModal } from '../components/TransferCodesModal'
+import { CodeDateModal } from '../components/CodeDateModal'
 import { Avatar, Badge, EmptyState, SearchField, StatCard } from '../components/ui'
 import { countSessionCodes, distributorStats, senditSplit } from '../lib/stats'
 import { isSendit } from '../lib/codes'
@@ -108,13 +109,14 @@ export function DistributorDetailPage() {
   const updateDistributorInfo = useStore((state) => state.updateDistributorInfo)
   const deleteCode = useStore((state) => state.deleteCode)
   const restoreCode = useStore((state) => state.restoreCode)
-
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [visible, setVisible] = useState(150)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
+  const [dateTarget, setDateTarget] = useState<ScanCode | null>(null)
+  const [dateOpen, setDateOpen] = useState(false)
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
   const returnStatuses = useReturnStatuses()
@@ -426,6 +428,18 @@ export function DistributorDetailPage() {
               <ArrowRightLeft size={15} />
               {t('transfer.action')}
             </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setDateTarget(null)
+                setDateOpen(true)
+              }}
+              disabled={!codesFor.length}
+            >
+              <CalendarDays size={15} />
+              {t('codedate.action')}
+            </button>
             {distributor.fixed ? null : (
               <>
                 <button
@@ -687,7 +701,17 @@ export function DistributorDetailPage() {
                       <div className="code-main">
                         <span className="code-mono">{code.code}</span>
                         <span className="code-sub">
-                          {formatDate(code.scannedAt, lang)}
+                          <button
+                            type="button"
+                            className="link-btn"
+                            onClick={() => {
+                              setDateTarget(code)
+                              setDateOpen(true)
+                            }}
+                            title={t('codedate.title')}
+                          >
+                            {formatDate(code.scannedAt, lang)}
+                          </button>
                           <span className="dot-sep">·</span>
                           {formatTime(code.scannedAt, lang)}
                           {code.movedFrom?.distributorName ? (
@@ -848,6 +872,15 @@ export function DistributorDetailPage() {
         onClose={() => setTransferOpen(false)}
         distributor={distributor}
       />
+
+      {distributor ? (
+        <CodeDateModal
+          open={dateOpen}
+          onClose={() => setDateOpen(false)}
+          distributor={distributor}
+          code={dateTarget}
+        />
+      ) : null}
     </div>
   )
 }

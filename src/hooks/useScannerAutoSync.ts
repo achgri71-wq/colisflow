@@ -152,6 +152,20 @@ export function useScannerAutoSync(enabled: boolean): void {
         .catch(() => {})
     })
 
+    // Publish the shared link as soon as the data changes (dates edited by
+    // hand, codes added or moved), so Return Scanner Pro sees it in seconds
+    // instead of waiting for the next scheduled tick.
+    let pushTimer: number | null = null
+    const pushSoon = () => {
+      if (stopped) return
+      if (pushTimer !== null) window.clearTimeout(pushTimer)
+      pushTimer = window.setTimeout(() => {
+        pushTimer = null
+        if (!stopped) void syncLink()
+      }, 2500)
+    }
+    const offStore = useStore.subscribe(pushSoon)
+
     const timers: number[] = []
     timers.push(window.setTimeout(tick, INITIAL_DELAY_MS))
     timers.push(window.setInterval(tick, SYNC_INTERVAL_MS))
@@ -161,6 +175,8 @@ export function useScannerAutoSync(enabled: boolean): void {
     return () => {
       stopped = true
       offLink()
+      offStore()
+      if (pushTimer !== null) window.clearTimeout(pushTimer)
       for (const id of timers) {
         clearTimeout(id)
         clearInterval(id)
