@@ -263,11 +263,17 @@ export function normalizeScanDistributors(raw: unknown): ScanDistributor[] {
 
 /** Compacts the local distributor data for publication. */
 export function buildFlowPayload(
-  distributors: { id: string; name: string; updatedAt: string; archived: boolean }[],
-  codes: { code: string; distributorId: string; scannedAt: string }[],
+  distributors: { id: string; name: string; phone?: string; updatedAt: string; archived: boolean }[],
+  codes: {
+    code: string
+    distributorId: string
+    scannedAt: string
+    movedFrom?: { movedAt?: string }
+  }[],
 ): {
   distributors: {
     name: string
+    phone?: string
     codes: string[]
     dates?: string[]
     date: string
@@ -276,9 +282,11 @@ export function buildFlowPayload(
 } {
   const byDistributor = new Map<string, { code: string; at: string }[]>()
   for (const record of codes) {
+    // A code moved between distributors counts from its swap date.
+    const at = record.movedFrom?.movedAt ?? record.scannedAt
     const list = byDistributor.get(record.distributorId)
-    if (list) list.push({ code: record.code, at: record.scannedAt })
-    else byDistributor.set(record.distributorId, [{ code: record.code, at: record.scannedAt }])
+    if (list) list.push({ code: record.code, at })
+    else byDistributor.set(record.distributorId, [{ code: record.code, at }])
   }
   return {
     distributors: distributors.map((entry) => {
@@ -290,6 +298,7 @@ export function buildFlowPayload(
       }
       return {
         name: entry.name,
+        ...(entry.phone ? { phone: entry.phone } : {}),
         codes: Array.from(seen.keys()),
         dates: Array.from(seen.values()),
         date: entry.updatedAt,

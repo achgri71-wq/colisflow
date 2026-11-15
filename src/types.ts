@@ -37,6 +37,8 @@ export interface ScanCode {
   movedFrom?: {
     distributorId: string
     distributorName: string
+    /** When the code was moved to its current distributor. */
+    movedAt?: string
   }
 }
 

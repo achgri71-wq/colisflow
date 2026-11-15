@@ -507,6 +507,7 @@ export const useStore = create<StoreState>((set, get) => {
           movedFrom: {
             distributorId: code.distributorId,
             distributorName: names.get(code.distributorId) ?? '',
+            movedAt: now,
           },
         })
       }

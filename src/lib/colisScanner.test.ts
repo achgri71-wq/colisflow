@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeScanDistributors } from './colisScanner'
+import { buildFlowPayload, normalizeScanDistributors } from './colisScanner'
 
 describe('normalizeScanDistributors', () => {
   it('reads the Realtime Database map form', () => {
@@ -49,5 +49,46 @@ describe('normalizeScanDistributors', () => {
     expect(normalizeScanDistributors(null)).toEqual([])
     expect(normalizeScanDistributors(undefined)).toEqual([])
     expect(normalizeScanDistributors(42)).toEqual([])
+  })
+})
+
+describe('buildFlowPayload', () => {
+  it('publishes the distributor phone and keeps dates aligned with codes', () => {
+    const payload = buildFlowPayload(
+      [{ id: 'd1', name: 'Rachid', phone: '0612345678', updatedAt: '2026-11-14T00:00:00.000Z', archived: false }],
+      [
+        { code: 'A1', distributorId: 'd1', scannedAt: '2026-11-10T08:00:00.000Z' },
+        { code: 'A2', distributorId: 'd1', scannedAt: '2026-11-11T08:00:00.000Z' },
+      ],
+    )
+    expect(payload.distributors[0]).toMatchObject({
+      name: 'Rachid',
+      phone: '0612345678',
+      codes: ['A1', 'A2'],
+      dates: ['2026-11-10T08:00:00.000Z', '2026-11-11T08:00:00.000Z'],
+    })
+  })
+
+  it('counts a swapped code from its move date', () => {
+    const payload = buildFlowPayload(
+      [{ id: 'd1', name: 'Rachid', updatedAt: '2026-11-14T00:00:00.000Z', archived: false }],
+      [
+        {
+          code: 'A1',
+          distributorId: 'd1',
+          scannedAt: '2026-11-01T08:00:00.000Z',
+          movedFrom: { movedAt: '2026-11-13T09:00:00.000Z' },
+        },
+      ],
+    )
+    expect(payload.distributors[0].dates).toEqual(['2026-11-13T09:00:00.000Z'])
+  })
+
+  it('omits the phone when the distributor has none', () => {
+    const payload = buildFlowPayload(
+      [{ id: 'd1', name: 'Rachid', updatedAt: '2026-11-14T00:00:00.000Z', archived: false }],
+      [],
+    )
+    expect(payload.distributors[0]).not.toHaveProperty('phone')
   })
 })
