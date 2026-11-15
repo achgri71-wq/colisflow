@@ -80,4 +80,29 @@ describe('importFromScanner — permanent routeur lists', () => {
     const stored = useStore.getState().codes.find((entry) => entry.code === 'SENDIT003')
     expect(stored?.distributorId).toBe(b.id)
   })
+
+  it('keeps the original scan date when a code moves between distributors', async () => {
+    const a = distributor('dist-a', 'LIVREUR A')
+    const b = distributor('dist-b', 'LIVREUR B')
+    const original = '2026-11-01T08:00:00.000Z'
+    useStore.setState({
+      distributors: [a, b],
+      codes: [{ ...code('code-4', 'SENDIT004', a.id), scannedAt: original }],
+      sessions: [],
+    })
+
+    await useStore.getState().importFromScanner([
+      {
+        id: 'sd-5',
+        name: 'LIVREUR B',
+        codes: ['SENDIT004'],
+        archived: false,
+        date: '2026-11-13T09:00:00.000Z',
+      },
+    ])
+
+    const stored = useStore.getState().codes.find((entry) => entry.code === 'SENDIT004')
+    expect(stored?.distributorId).toBe(b.id)
+    expect(stored?.scannedAt).toBe(original)
+  })
 })

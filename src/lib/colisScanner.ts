@@ -268,7 +268,6 @@ export function buildFlowPayload(
     code: string
     distributorId: string
     scannedAt: string
-    movedFrom?: { movedAt?: string }
   }[],
 ): {
   distributors: {
@@ -282,8 +281,9 @@ export function buildFlowPayload(
 } {
   const byDistributor = new Map<string, { code: string; at: string }[]>()
   for (const record of codes) {
-    // A code moved between distributors counts from its swap date.
-    const at = record.movedFrom?.movedAt ?? record.scannedAt
+    // Every code keeps the day it was first scanned, even when it was moved
+    // between distributors: the move never resets the original scan date.
+    const at = record.scannedAt
     const list = byDistributor.get(record.distributorId)
     if (list) list.push({ code: record.code, at })
     else byDistributor.set(record.distributorId, [{ code: record.code, at }])

@@ -302,7 +302,8 @@ export const useStore = create<StoreState>((set, get) => {
         raw: rawValue,
         sessionId: session.id,
         distributorId: session.distributorId,
-        scannedAt: now,
+        // A moved code keeps the day it was first scanned.
+        scannedAt: moved[0]?.scannedAt ?? now,
         source,
         ...(moved[0]
           ? {
@@ -400,7 +401,8 @@ export const useStore = create<StoreState>((set, get) => {
           raw: code,
           sessionId: session.id,
           distributorId: session.distributorId,
-          scannedAt: now,
+          // A moved code keeps the day it was first scanned.
+          scannedAt: sourceRecord?.scannedAt ?? now,
           source,
           ...(sourceRecord
             ? {
@@ -815,6 +817,7 @@ export const useStore = create<StoreState>((set, get) => {
           }
 
           let movedFrom: ScanCode['movedFrom']
+          let scannedAt: string
           if (existing) {
             removedIds.add(existing.id)
             movedFrom = {
@@ -822,17 +825,21 @@ export const useStore = create<StoreState>((set, get) => {
               distributorName:
                 state.distributors.find((entry) => entry.id === existing.distributorId)?.name ?? '',
             }
+            // A moved code keeps the day it was first scanned.
+            scannedAt = existing.scannedAt
             byCode.delete(code)
+          } else {
+            stamp += 1000
+            scannedAt = new Date(Math.min(stamp, Date.now())).toISOString()
           }
 
-          stamp += 1000
           const record: ScanCode = {
             id: uid('code'),
             code,
             raw: code,
             sessionId,
             distributorId: distributor.id,
-            scannedAt: new Date(Math.min(stamp, Date.now())).toISOString(),
+            scannedAt,
             source: 'import',
             ...(movedFrom ? { movedFrom } : {}),
           }

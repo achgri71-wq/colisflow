@@ -69,19 +69,12 @@ describe('buildFlowPayload', () => {
     })
   })
 
-  it('counts a swapped code from its move date', () => {
+  it('keeps the original scan date when a code was swapped', () => {
     const payload = buildFlowPayload(
       [{ id: 'd1', name: 'Rachid', updatedAt: '2026-11-14T00:00:00.000Z', archived: false }],
-      [
-        {
-          code: 'A1',
-          distributorId: 'd1',
-          scannedAt: '2026-11-01T08:00:00.000Z',
-          movedFrom: { movedAt: '2026-11-13T09:00:00.000Z' },
-        },
-      ],
+      [{ code: 'A1', distributorId: 'd1', scannedAt: '2026-11-01T08:00:00.000Z' }],
     )
-    expect(payload.distributors[0].dates).toEqual(['2026-11-13T09:00:00.000Z'])
+    expect(payload.distributors[0].dates).toEqual(['2026-11-01T08:00:00.000Z'])
   })
 
   it('omits the phone when the distributor has none', () => {
