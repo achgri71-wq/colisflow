@@ -268,6 +268,7 @@ export function buildFlowPayload(
     code: string
     distributorId: string
     scannedAt: string
+    movedFrom?: { movedAt?: string }
   }[],
 ): {
   distributors: {
@@ -275,32 +276,37 @@ export function buildFlowPayload(
     phone?: string
     codes: string[]
     dates?: string[]
+    since?: string[]
     date: string
     archived: boolean
   }[]
 } {
-  const byDistributor = new Map<string, { code: string; at: string }[]>()
+  const byDistributor = new Map<string, { code: string; at: string; since: string }[]>()
   for (const record of codes) {
-    // Every code keeps the day it was first scanned, even when it was moved
-    // between distributors: the move never resets the original scan date.
+    // The code keeps the day it was first scanned (shown to the operator), but
+    // when it was moved to another distributor the late count restarts from the
+    // move date, so both dates are published side by side.
     const at = record.scannedAt
+    const since = record.movedFrom?.movedAt ?? record.scannedAt
     const list = byDistributor.get(record.distributorId)
-    if (list) list.push({ code: record.code, at })
-    else byDistributor.set(record.distributorId, [{ code: record.code, at }])
+    if (list) list.push({ code: record.code, at, since })
+    else byDistributor.set(record.distributorId, [{ code: record.code, at, since }])
   }
   return {
     distributors: distributors.map((entry) => {
-      // Keep the first scan date of every code, aligned with the codes array.
+      // Keep the first dates of every code, aligned with the codes array.
       const rows = byDistributor.get(entry.id) ?? []
-      const seen = new Map<string, string>()
+      const seen = new Map<string, { at: string; since: string }>()
       for (const row of rows) {
-        if (!seen.has(row.code)) seen.set(row.code, row.at)
+        if (!seen.has(row.code)) seen.set(row.code, { at: row.at, since: row.since })
       }
+      const values = Array.from(seen.values())
       return {
         name: entry.name,
         ...(entry.phone ? { phone: entry.phone } : {}),
         codes: Array.from(seen.keys()),
-        dates: Array.from(seen.values()),
+        dates: values.map((value) => value.at),
+        since: values.map((value) => value.since),
         date: entry.updatedAt,
         archived: entry.archived,
       }

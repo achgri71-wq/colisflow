@@ -310,6 +310,8 @@ export const useStore = create<StoreState>((set, get) => {
               movedFrom: {
                 distributorId: moved[0].distributorId,
                 distributorName: movedFromName,
+                // The late count restarts from the day of the move.
+                movedAt: now,
               },
             }
           : {}),
@@ -409,6 +411,8 @@ export const useStore = create<StoreState>((set, get) => {
                 movedFrom: {
                   distributorId: sourceRecord.distributorId,
                   distributorName: distributorNames.get(sourceRecord.distributorId) ?? '',
+                  // The late count restarts from the day of the move.
+                  movedAt: now,
                 },
               }
             : {}),
@@ -824,6 +828,9 @@ export const useStore = create<StoreState>((set, get) => {
               distributorId: existing.distributorId,
               distributorName:
                 state.distributors.find((entry) => entry.id === existing.distributorId)?.name ?? '',
+              // The code keeps its original scan date for display, but the late
+              // count restarts from the day it landed in this new list.
+              movedAt: startedAt,
             }
             // A moved code keeps the day it was first scanned.
             scannedAt = existing.scannedAt

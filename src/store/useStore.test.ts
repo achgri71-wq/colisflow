@@ -104,5 +104,7 @@ describe('importFromScanner — permanent routeur lists', () => {
     const stored = useStore.getState().codes.find((entry) => entry.code === 'SENDIT004')
     expect(stored?.distributorId).toBe(b.id)
     expect(stored?.scannedAt).toBe(original)
+    // The late count restarts from the day the code landed in the new list.
+    expect(stored?.movedFrom?.movedAt).toBe('2026-11-13T09:00:00.000Z')
   })
 })
