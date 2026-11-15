@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Archive,
   ArchiveRestore,
+  Check,
   Download,
   EllipsisVertical,
   Pencil,
@@ -81,6 +82,9 @@ function CardMenu({ items, label }: { items: MenuItem[]; label: string }) {
 export function DistributorCard({
   distributor,
   stats,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
   onResume,
   onExport,
   onRename,
@@ -90,6 +94,10 @@ export function DistributorCard({
 }: {
   distributor: Distributor
   stats: DistributorStats
+  /** Selection mode is on and this card can be picked for a bulk archive. */
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
   onResume: () => void
   onExport: () => void
   onRename: () => void
@@ -101,18 +109,47 @@ export function DistributorCard({
   const archived = distributor.archived
   const parcelsLabel = stats.parcels === 1 ? t('common.parcel') : t('common.parcels')
   const sessionsLabel = stats.sessions === 1 ? t('common.session') : t('common.sessions')
+  // Fixed routeur lists and archived distributors can never be bulk-archived,
+  // so they stay out of selection mode.
+  const interactive = selectable && !distributor.fixed && !archived
 
   return (
-    <article className={cx('dist-card', archived && 'is-archived', distributor.fixed && 'is-fixed')}>
+    <article
+      className={cx(
+        'dist-card',
+        archived && 'is-archived',
+        distributor.fixed && 'is-fixed',
+        interactive && 'is-selecting',
+        interactive && selected && 'is-selected',
+      )}
+      role={interactive ? 'checkbox' : undefined}
+      aria-checked={interactive ? selected : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={interactive ? onToggleSelect : undefined}
+      onKeyDown={
+        interactive
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onToggleSelect?.()
+              }
+            }
+          : undefined
+      }
+    >
       <div className="dist-card-top">
         <span className="dist-avatar">
           <span className="dist-avatar-ring" />
           <span className="dist-avatar-text">{distributor.name.slice(0, 1).toUpperCase()}</span>
         </span>
         <div className="dist-identity">
-          <Link to={`/distributors/${distributor.id}`} className="dist-name">
-            {distributor.name}
-          </Link>
+          {interactive ? (
+            <span className="dist-name">{distributor.name}</span>
+          ) : (
+            <Link to={`/distributors/${distributor.id}`} className="dist-name">
+              {distributor.name}
+            </Link>
+          )}
           <div className="dist-meta">
             {distributor.fixed ? (
               <Badge tone="accent" dot>
@@ -130,6 +167,11 @@ export function DistributorCard({
             )}
           </div>
         </div>
+        {interactive ? (
+          <span className="dist-check" aria-hidden>
+            {selected ? <Check size={14} /> : null}
+          </span>
+        ) : (
         <CardMenu
           label={t('dist.more')}
           items={
@@ -172,6 +214,7 @@ export function DistributorCard({
                 ]
           }
         />
+        )}
       </div>
 
       {distributor.note ? <p className="dist-note">{distributor.note}</p> : null}
@@ -187,23 +230,25 @@ export function DistributorCard({
         </div>
       </div>
 
-      <div className="dist-card-actions">
-        <Link to={`/distributors/${distributor.id}`} className="btn btn-ghost btn-sm">
-          {t('dist.details')}
-          <ChevronRight size={15} className="flip-rtl" />
-        </Link>
-        {archived ? (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onRestore}>
-            <ArchiveRestore size={15} />
-            {t('common.restore')}
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primary btn-sm" onClick={onResume}>
-            <Play size={15} />
-            {t('dist.resume')}
-          </button>
-        )}
-      </div>
+      {interactive ? null : (
+        <div className="dist-card-actions">
+          <Link to={`/distributors/${distributor.id}`} className="btn btn-ghost btn-sm">
+            {t('dist.details')}
+            <ChevronRight size={15} className="flip-rtl" />
+          </Link>
+          {archived ? (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onRestore}>
+              <ArchiveRestore size={15} />
+              {t('common.restore')}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary btn-sm" onClick={onResume}>
+              <Play size={15} />
+              {t('dist.resume')}
+            </button>
+          )}
+        </div>
+      )}
     </article>
   )
 }

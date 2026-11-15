@@ -111,6 +111,26 @@ export function useDistributorActions() {
     return true
   }
 
+  // Archives a whole selection with a single confirmation. Fixed routeur lists
+  // and already archived distributors are silently ignored, so the bulk action
+  // can never touch what the card menu protects.
+  const archiveMany = async (targets: Distributor[]) => {
+    const list = targets.filter((item) => !item.fixed && !item.archived)
+    if (!list.length) return false
+    const confirmed = await dialog.confirm({
+      title: t('dist.archiveManyTitle', { count: list.length }),
+      message: t('dist.archiveManyMsg', { count: list.length }),
+      confirmLabel: t('common.archive'),
+      tone: 'warning',
+    })
+    if (!confirmed) return false
+    for (const item of list) {
+      await archiveDistributor(item.id)
+    }
+    toast.push({ message: t('dist.archivedManyToast', { count: list.length }), tone: 'success' })
+    return true
+  }
+
   const restore = async (distributor: Distributor) => {
     await restoreDistributor(distributor.id)
     toast.push({ message: t('dist.restored'), tone: 'success' })
@@ -148,5 +168,5 @@ export function useDistributorActions() {
     return true
   }
 
-  return { resume, exportExcel, rename, archive, restore, remove }
+  return { resume, exportExcel, rename, archive, archiveMany, restore, remove }
 }

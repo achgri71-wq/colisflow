@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Boxes, ChevronDown, CloudDownload, Plus, Search, Truck, X } from 'lucide-react'
+import { Archive, Boxes, ChevronDown, CloudDownload, ListChecks, Plus, Search, Truck, X } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { useStore } from '../store/useStore'
 import { PageHeader, SearchField, EmptyState, Badge } from '../components/ui'
@@ -27,6 +27,8 @@ export function DistributorsPage() {
   const [startOpen, setStartOpen] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
   const [fixedOpen, setFixedOpen] = useState(false)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const statsById = useMemo(() => {
     const map = new Map<string, ReturnType<typeof distributorStats>>()
@@ -66,6 +68,36 @@ export function DistributorsPage() {
   const others = filtered.filter((distributor) => !distributor.fixed)
   const showFixed = fixedOpen || (needle.length > 0 && fixedList.length > 0)
 
+  // Only ordinary, still active lists can be bulk-archived. The six fixed
+  // routeur lists and the already archived distributors are left out.
+  const selectableList = filtered.filter((distributor) => !distributor.fixed && !distributor.archived)
+  const allSelected =
+    selectableList.length > 0 && selectableList.every((distributor) => selected.has(distributor.id))
+
+  const toggleSelect = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const exitSelect = () => {
+    setSelecting(false)
+    setSelected(new Set())
+  }
+
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(selectableList.map((distributor) => distributor.id)))
+  }
+
+  const archiveSelected = async () => {
+    const targets = distributors.filter((distributor) => selected.has(distributor.id))
+    const ok = await actions.archiveMany(targets)
+    if (ok) exitSelect()
+  }
+
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: 'all', label: t('dist.filterAll'), count: distributors.length },
     { key: 'active', label: t('dist.filterActive'), count: activeCount },
@@ -73,12 +105,15 @@ export function DistributorsPage() {
   ]
 
   const renderGrid = (items: Distributor[]) => (
-    <div className="dist-grid">
+    <div className={cx('dist-grid', selecting && 'is-selecting')}>
       {items.map((distributor) => (
         <DistributorCard
           key={distributor.id}
           distributor={distributor}
           stats={statsById.get(distributor.id) ?? { parcels: 0, sendit: 0, sessions: 0 }}
+          selectable={selecting}
+          selected={selected.has(distributor.id)}
+          onToggleSelect={() => toggleSelect(distributor.id)}
           onResume={() => void actions.resume(distributor)}
           onExport={() => void actions.exportExcel(distributor)}
           onRename={() => void actions.rename(distributor)}
@@ -138,14 +173,52 @@ export function DistributorsPage() {
                 </button>
               ))}
             </div>
-            <div className="toolbar-search">
-              <SearchField
-                value={query}
-                onChange={setQuery}
-                placeholder={t('dist.search')}
-              />
+            <div className="toolbar-tools">
+              <div className="toolbar-search">
+                <SearchField
+                  value={query}
+                  onChange={setQuery}
+                  placeholder={t('dist.search')}
+                />
+              </div>
+              {!selecting && selectableList.length ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setSelecting(true)}
+                >
+                  <ListChecks size={15} />
+                  {t('dist.select')}
+                </button>
+              ) : null}
             </div>
           </div>
+
+          {selecting ? (
+            <div className="dist-bulk">
+              <div className="dist-bulk-info">
+                <Badge tone="accent">{t('dist.selectedCount', { count: selected.size })}</Badge>
+                <span className="dist-bulk-hint">{t('dist.selectHint')}</span>
+              </div>
+              <div className="dist-bulk-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={toggleAll}>
+                  {allSelected ? t('dist.selectNone') : t('dist.selectAll')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void archiveSelected()}
+                  disabled={selected.size === 0}
+                >
+                  <Archive size={15} />
+                  {t('dist.archiveSelected')}
+                </button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={exitSelect}>
+                  {t('dist.selectExit')}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {filtered.length ? (
             <div className="dist-sections">
