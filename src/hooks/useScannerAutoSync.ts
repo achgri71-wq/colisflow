@@ -13,8 +13,8 @@ import {
 } from '../lib/colisScanner'
 import { formatNumber } from '../lib/utils'
 
-const SYNC_INTERVAL_MS = 5 * 60 * 1000
-const INITIAL_DELAY_MS = 4000
+const SYNC_INTERVAL_MS = 2 * 60 * 1000
+const INITIAL_DELAY_MS = 1200
 const MIN_GAP_MS = 60 * 1000
 
 const LINK_DB = 'colislink'
@@ -151,6 +151,7 @@ export function useScannerAutoSync(enabled: boolean): void {
           codes: items.reduce((sum, item) => sum + item.codes.length, 0),
           added: result.added,
           moved: result.moved,
+          names: result.names,
         })
         if (result.added > 0 || result.moved > 0) {
           const { t: translate, lang: language } = localeRef.current
@@ -213,6 +214,10 @@ export function useScannerAutoSync(enabled: boolean): void {
     timers.push(window.setInterval(tick, SYNC_INTERVAL_MS))
     document.addEventListener('visibilitychange', tick)
     window.addEventListener('online', tick)
+    // The Colis Scanner dialog asks for an immediate import once it has the
+    // lists, so nothing has to be pressed there.
+    const onSyncNow = () => void sync()
+    window.addEventListener('colisflow:sync-now', onSyncNow)
 
     return () => {
       stopped = true
@@ -225,6 +230,7 @@ export function useScannerAutoSync(enabled: boolean): void {
       }
       document.removeEventListener('visibilitychange', tick)
       window.removeEventListener('online', tick)
+      window.removeEventListener('colisflow:sync-now', onSyncNow)
     }
   }, [enabled, toast])
 }

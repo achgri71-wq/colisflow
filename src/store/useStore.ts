@@ -813,6 +813,7 @@ export const useStore = create<StoreState>((set, get) => {
       const newCodes: ScanCode[] = []
       const removedIds = new Set<string>()
       const touched = new Set<string>()
+      const importedNames = new Set<string>()
       let duplicates = 0
 
       const byCode = new Map(state.codes.map((record) => [record.code, record]))
@@ -857,8 +858,9 @@ export const useStore = create<StoreState>((set, get) => {
             name,
             createdAt: item.date ?? now,
             updatedAt: now,
-            archived: item.archived,
-            ...(item.archived ? { archivedAt: item.date ?? now } : {}),
+            // Imported lists are always active: a list archived or deleted on
+            // the Colis Scanner side must still show up under Active here.
+            archived: false,
           }
           distributor = created
           createdDistributors.push(created)
@@ -923,6 +925,7 @@ export const useStore = create<StoreState>((set, get) => {
 
         // Only keep the import session when at least one code was actually added.
         if (addedHere > 0) {
+          importedNames.add(distributor.name)
           newSessions.push({
             id: sessionId,
             distributorId: distributor.id,
@@ -936,7 +939,7 @@ export const useStore = create<StoreState>((set, get) => {
       }
 
       if (!newCodes.length) {
-        return { created: 0, updated: 0, added: 0, moved: 0, duplicates }
+        return { created: 0, updated: 0, added: 0, moved: 0, duplicates, names: [] }
       }
 
       // A code can be re-imported under another distributor within the same
@@ -950,7 +953,11 @@ export const useStore = create<StoreState>((set, get) => {
       for (const id of touched) {
         if (createdIds.has(id)) continue
         const entry = state.distributors.find((item) => item.id === id)
-        if (entry) updatedExisting.push({ ...entry, updatedAt: now })
+        // Receiving codes always brings a list back under Active, even when it
+        // was archived before (imports used to inherit the scanner's flag).
+        if (entry) {
+          updatedExisting.push({ ...entry, updatedAt: now, archived: false, archivedAt: undefined })
+        }
       }
       const updatedById = new Map(updatedExisting.map((entry) => [entry.id, entry]))
 
@@ -979,6 +986,7 @@ export const useStore = create<StoreState>((set, get) => {
         added: added.length,
         moved: removedIds.size,
         duplicates,
+        names: Array.from(importedNames),
       }
     },
 
@@ -991,6 +999,7 @@ export const useStore = create<StoreState>((set, get) => {
         codes: entry.codes,
         added: entry.added,
         moved: entry.moved,
+        ...(entry.names && entry.names.length ? { names: entry.names } : {}),
         ...(entry.message ? { message: entry.message } : {}),
       }
       const next = appendSyncLog(get().syncLog, full)

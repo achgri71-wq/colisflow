@@ -45,6 +45,12 @@ describe('appendSyncLog', () => {
     expect(second[0].message).toBe('scanlink.errNetwork')
   })
 
+  it('does not collapse runs that imported different lists', () => {
+    const first = appendSyncLog([], entry('2026-01-01T10:00:00.000Z', { added: 1, names: ['LIVREUR A'] }))
+    const second = appendSyncLog(first, entry('2026-01-01T10:05:00.000Z', { added: 1, names: ['LIVREUR B'] }))
+    expect(second).toHaveLength(2)
+  })
+
   it('never grows past the limit', () => {
     let log: SyncLogEntry[] = []
     for (let index = 0; index < SYNC_LOG_LIMIT + 10; index += 1) {

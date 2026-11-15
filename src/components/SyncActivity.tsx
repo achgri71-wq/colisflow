@@ -99,6 +99,9 @@ export function SyncActivity() {
                   </span>
                   <div className="activity-copy">
                     <span className="activity-text">{entryText(entry)}</span>
+                    {entry.names && entry.names.length ? (
+                      <span className="activity-names">{entry.names.join(' · ')}</span>
+                    ) : null}
                     <span className="activity-time">{formatDateTime(entry.at, lang)}</span>
                   </div>
                 </div>

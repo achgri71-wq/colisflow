@@ -121,3 +121,54 @@ describe('importFromScanner — permanent routeur lists', () => {
     expect(stored?.movedFrom?.movedAt).toBe('2026-11-13T09:00:00.000Z')
   })
 })
+
+describe('importFromScanner — imported lists stay active', () => {
+  beforeEach(() => {
+    useStore.setState({ distributors: [], sessions: [], codes: [], events: [] })
+  })
+
+  it('creates a list archived on the Colis Scanner side as active', async () => {
+    const result = await useStore.getState().importFromScanner([
+      {
+        id: 'sd-arch',
+        name: 'ANCIEN CLIENT',
+        codes: ['SENDIT100'],
+        archived: true,
+        date: '2026-11-01T00:00:00.000Z',
+      },
+    ])
+
+    const created = useStore.getState().distributors.find((entry) => entry.name === 'ANCIEN CLIENT')
+    expect(created?.archived).toBe(false)
+    expect(created?.archivedAt).toBeUndefined()
+    expect(result.names).toContain('ANCIEN CLIENT')
+  })
+
+  it('brings an archived list back under Active when it receives codes', async () => {
+    const archived: Distributor = {
+      id: 'dist-old',
+      name: 'ANCIEN',
+      createdAt: NOW,
+      updatedAt: NOW,
+      archived: true,
+      archivedAt: NOW,
+    }
+    useStore.setState({ distributors: [archived], codes: [], sessions: [] })
+
+    await useStore.getState().importFromScanner([
+      { id: 'sd-old', name: 'ANCIEN', codes: ['SENDIT200'], archived: true },
+    ])
+
+    const restored = useStore.getState().distributors.find((entry) => entry.id === 'dist-old')
+    expect(restored?.archived).toBe(false)
+  })
+
+  it('reports only the lists that actually received new codes', async () => {
+    const result = await useStore.getState().importFromScanner([
+      { id: 'sd-a', name: 'LIVREUR A', codes: ['SENDIT300'], archived: false },
+      { id: 'sd-b', name: 'LIVREUR B', codes: [], archived: false },
+    ])
+
+    expect(result.names).toEqual(['LIVREUR A'])
+  })
+})

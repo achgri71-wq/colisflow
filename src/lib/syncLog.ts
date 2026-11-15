@@ -43,6 +43,7 @@ function sameResult(a: SyncLogEntry, b: SyncLogEntry): boolean {
     a.codes === b.codes &&
     a.added === b.added &&
     a.moved === b.moved &&
+    (a.names ?? []).join('\u0000') === (b.names ?? []).join('\u0000') &&
     (a.message ?? '') === (b.message ?? '')
   )
 }

@@ -2114,6 +2114,16 @@ kbd {
   overflow-wrap: anywhere;
 }
 
+.activity-names {
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .activity-time {
   font-size: 10px;
   color: var(--text-faint);

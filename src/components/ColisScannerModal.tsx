@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CloudDownload, Link2Off, RefreshCw } from 'lucide-react'
 import { useI18n } from '../i18n'
-import { useStore } from '../store/useStore'
-import { useDialog } from './Dialog'
-import { useToast } from './Toast'
 import { Modal } from './Modal'
 import { Badge, EmptyState, Spinner } from './ui'
 import {
@@ -17,11 +14,17 @@ import {
 import type { ScanDistributor } from '../types'
 import { formatDate, formatNumber } from '../lib/utils'
 
+/**
+ * Asks the background sync to import right away. The dialog has no import
+ * button and no confirmation: the lists are merged automatically, and the run
+ * shows up in the sync activity card.
+ */
+function requestSyncNow(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('colisflow:sync-now'))
+}
+
 export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, lang } = useI18n()
-  const dialog = useDialog()
-  const toast = useToast()
-  const importFromScanner = useStore((state) => state.importFromScanner)
 
   const [auth, setAuth] = useState<ScannerAuth | null>(null)
   const [email, setEmail] = useState('')
@@ -30,7 +33,6 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<ScanDistributor[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -49,6 +51,8 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
         if (cancelled) return
         setItems(list)
         setError(null)
+        // Import as soon as the Colis Scanner lists are known.
+        requestSyncNow()
       })
       .catch((cause: unknown) => {
         if (cancelled) return
@@ -86,58 +90,10 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
     setError(null)
   }
 
-  const runImport = async (targets: ScanDistributor[]) => {
-    const total = targets.reduce((sum, item) => sum + item.codes.length, 0)
-    if (!targets.length || !total || busy) return
-
-    const confirmed = await dialog.confirm({
-      title: t('scanlink.confirmTitle'),
-      message: t('scanlink.confirmMsg', {
-        lists: formatNumber(targets.length, lang),
-        codes: formatNumber(total, lang),
-      }),
-      confirmLabel: t('scanlink.import'),
-      tone: 'primary',
-    })
-    if (!confirmed) return
-
-    setBusy(targets.length === 1 ? targets[0].id : 'all')
-    try {
-      const result = await importFromScanner(targets)
-      toast.push({
-        title: t('scanlink.doneTitle'),
-        message: t('scanlink.doneMsg', {
-          created: formatNumber(result.created, lang),
-          codes: formatNumber(result.added, lang),
-          moved: formatNumber(result.moved, lang),
-        }),
-        tone: 'success',
-        duration: 7000,
-      })
-    } catch {
-      toast.push({ message: t('scanlink.errImport'), tone: 'error' })
-    } finally {
-      setBusy(null)
-    }
-  }
-
   const connectDisabled = connecting || !email.trim() || !password
 
-  const footer =
-    !auth || loading || items.length === 0 ? undefined : (
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => void runImport(items)}
-        disabled={busy !== null}
-      >
-        <CloudDownload size={15} />
-        {busy === 'all' ? t('scanlink.importing') : t('scanlink.importAll')}
-      </button>
-    )
-
   return (
-    <Modal open={open} onClose={onClose} title={t('scanlink.title')} size="md" footer={footer}>
+    <Modal open={open} onClose={onClose} title={t('scanlink.title')} size="md">
       {!auth ? (
         <div className="scan-connect">
           <p className="scan-hint">{t('scanlink.subtitle')}</p>
@@ -238,14 +194,6 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
                       {item.date ? ` · ${formatDate(item.date, lang)}` : ''}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => void runImport([item])}
-                    disabled={busy !== null || item.codes.length === 0}
-                  >
-                    {busy === item.id ? t('scanlink.importing') : t('scanlink.import')}
-                  </button>
                 </div>
               ))}
             </div>

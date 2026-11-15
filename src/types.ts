@@ -118,6 +118,8 @@ export interface ScannerImportResult {
   added: number
   moved: number
   duplicates: number
+  /** Names of the distributors that received new codes in this import. */
+  names: string[]
 }
 
 /** One distributor list as read from the Colis Scanner app. */
@@ -144,6 +146,8 @@ export interface SyncLogEntry {
   added: number
   /** Codes moved between lists by this run. */
   moved: number
+  /** Distributors that received new codes in this run. */
+  names?: string[]
   /** Translation key describing a failure. */
   message?: string
 }
