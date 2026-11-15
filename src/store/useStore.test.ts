@@ -46,6 +46,19 @@ describe('importFromScanner — permanent routeur lists', () => {
     expect(stored?.distributorId).toBe(fixed.id)
   })
 
+  it('imports a differently spelled routeur name into its canonical fixed list', async () => {
+    const fixed = distributor('fixed-routeur-anass', 'ROUTEUR ANASS', true)
+    useStore.setState({ distributors: [fixed], codes: [], sessions: [] })
+
+    await useStore.getState().importFromScanner([
+      { id: 'sd-routeur', name: 'ROUTEURE ANASS', codes: ['SENDIT010'], archived: false },
+    ])
+
+    const state = useStore.getState()
+    expect(state.distributors).toHaveLength(1)
+    expect(state.codes.find((entry) => entry.code === 'SENDIT010')?.distributorId).toBe(fixed.id)
+  })
+
   it('keeps the fixed-list copy when the same code is listed twice in one batch', async () => {
     const fixed = distributor('fixed-routeur-anass', 'ROUTEUR ANASS', true)
     const other = distributor('dist-2', 'LIVREUR B')

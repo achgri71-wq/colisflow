@@ -824,13 +824,26 @@ export const useStore = create<StoreState>((set, get) => {
         if (!name || !item.codes.length) continue
 
         const lower = name.toLowerCase()
+        const fixedRouteur = isFixedListName(name)
+        // Colis Scanner names are not always spelled exactly like the six
+        // permanent routeur lists (e.g. ROUTEURE ANASS vs ROUTEUR ANASS).
+        // Resolve those imports to the canonical fixed distributor instead of
+        // creating a second ordinary list that Return Scanner Pro won't group
+        // under Routeurs.
+        const nameKey = fixedRouteur ? normalizeFixedName(name) : lower
+        let distributor = createdByName.get(nameKey)
+        if (!distributor && fixedRouteur) {
+          distributor = state.distributors.find(
+            (entry) =>
+              (entry.fixed || isFixedListName(entry.name)) &&
+              normalizeFixedName(entry.name) === nameKey,
+          )
+        }
         // Prefer an already-created entry, then an active distributor, then any match.
-        let distributor =
-          createdByName.get(lower) ??
+        distributor ??=
           state.distributors.find(
             (entry) => !entry.archived && entry.name.toLowerCase() === lower,
-          ) ??
-          state.distributors.find((entry) => entry.name.toLowerCase() === lower)
+          ) ?? state.distributors.find((entry) => entry.name.toLowerCase() === lower)
         if (!distributor) {
           const created: Distributor = {
             id: uid('dist'),
@@ -842,7 +855,7 @@ export const useStore = create<StoreState>((set, get) => {
           }
           distributor = created
           createdDistributors.push(created)
-          createdByName.set(lower, created)
+          createdByName.set(nameKey, created)
         }
 
         const sessionId = uid('sess')
