@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Archive, Boxes, ChevronDown, CloudDownload, ListChecks, Plus, Search, Truck, X } from 'lucide-react'
+import { Archive, Boxes, ChevronDown, Cloud, CloudDownload, ListChecks, Plus, RefreshCw, Search, Truck, X } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { useStore } from '../store/useStore'
 import { PageHeader, SearchField, EmptyState, Badge } from '../components/ui'
@@ -9,13 +9,17 @@ import { StartSessionModal } from '../components/StartSessionModal'
 import { SyncActivity } from '../components/SyncActivity'
 import { useDistributorActions } from '../hooks/useDistributorActions'
 import { distributorStats } from '../lib/stats'
+import { buildFlowPayload } from '../lib/colisScanner'
+import { putCloudLinkSlot } from '../lib/cloudLink'
 import { cx } from '../lib/utils'
 import type { Distributor } from '../types'
+import { useToast } from '../components/Toast'
 
 type Filter = 'all' | 'active' | 'archived'
 
 export function DistributorsPage() {
   const { t } = useI18n()
+  const toast = useToast()
   const distributors = useStore((state) => state.distributors)
   const sessions = useStore((state) => state.sessions)
   const codes = useStore((state) => state.codes)
@@ -29,6 +33,26 @@ export function DistributorsPage() {
   const [fixedOpen, setFixedOpen] = useState(false)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [publishingCloud, setPublishingCloud] = useState(false)
+
+  const publishToRsp = async () => {
+    if (publishingCloud) return
+    setPublishingCloud(true)
+    try {
+      const snapshot = buildFlowPayload(distributors, codes)
+      await putCloudLinkSlot('flow', snapshot)
+      const codeCount = snapshot.distributors.reduce((sum, item) => sum + item.codes.length, 0)
+      toast.push({
+        message: t('dist.cloudPublished', { lists: snapshot.distributors.length, codes: codeCount }),
+        tone: 'success',
+      })
+    } catch (error) {
+      console.warn('Manual ColisFlow → RSP cloud publish failed:', error)
+      toast.push({ message: t('dist.cloudPublishFailed'), tone: 'error' })
+    } finally {
+      setPublishingCloud(false)
+    }
+  }
 
   const statsById = useMemo(() => {
     const map = new Map<string, ReturnType<typeof distributorStats>>()
@@ -131,6 +155,15 @@ export function DistributorsPage() {
         title={t('dist.title')}
         actions={
           <>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void publishToRsp()}
+              disabled={publishingCloud}
+            >
+              {publishingCloud ? <RefreshCw size={16} className="spin" /> : <Cloud size={16} />}
+              {publishingCloud ? t('dist.cloudSyncing') : t('dist.cloudSync')}
+            </button>
             <button type="button" className="btn btn-secondary" onClick={() => setScanOpen(true)}>
               <CloudDownload size={16} />
               {t('scanlink.title')}

@@ -118,6 +118,10 @@ export const fr = {
   'camera.zoom': 'Zoom',
 
   'dist.title': 'Distributeurs',
+  'dist.cloudSync': 'Synchroniser avec RSP',
+  'dist.cloudSyncing': 'Publication…',
+  'dist.cloudPublished': '{lists} listes · {codes} colis publiés sur le cloud',
+  'dist.cloudPublishFailed': 'Échec de publication vers le cloud. Vérifiez votre connexion.',
   'dist.new': 'Nouveau distributeur',
   'dist.namePlaceholder': 'Nom du distributeur',
   'dist.nameExists': 'Un distributeur actif porte déjà ce nom.',
@@ -554,6 +558,10 @@ const en: Dictionary = {
   'camera.zoom': 'Zoom',
 
   'dist.title': 'Distributors',
+  'dist.cloudSync': 'Sync with RSP',
+  'dist.cloudSyncing': 'Publishing…',
+  'dist.cloudPublished': '{lists} lists · {codes} parcels published to cloud',
+  'dist.cloudPublishFailed': 'Cloud publish failed. Check your connection.',
   'dist.new': 'New distributor',
   'dist.namePlaceholder': 'Distributor name',
   'dist.nameExists': 'An active distributor already uses this name.',
@@ -984,6 +992,10 @@ const ar: Dictionary = {
   'camera.zoom': 'تكبير',
 
   'dist.title': 'الموزعون',
+  'dist.cloudSync': 'مزامنة مع RSP',
+  'dist.cloudSyncing': 'جارٍ النشر…',
+  'dist.cloudPublished': 'تم نشر {lists} قائمة · {codes} طرد في السحابة',
+  'dist.cloudPublishFailed': 'فشل النشر إلى السحابة. تحقق من الاتصال بالإنترنت.',
   'dist.new': 'موزع جديد',
   'dist.namePlaceholder': 'اسم الموزع',
   'dist.nameExists': 'يوجد موزع نشط بهذا الاسم بالفعل.',
