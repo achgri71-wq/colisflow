@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { CloudDownload, Link2Off, RefreshCw } from 'lucide-react'
+import { CloudDownload, Download, Link2Off, RefreshCw } from 'lucide-react'
 import { useI18n } from '../i18n'
+import { useStore } from '../store/useStore'
+import { useToast } from './Toast'
 import { Modal } from './Modal'
 import { Badge, EmptyState, Spinner } from './ui'
 import {
@@ -15,9 +17,10 @@ import type { ScanDistributor } from '../types'
 import { formatDate, formatNumber } from '../lib/utils'
 
 /**
- * Asks the background sync to import right away. The dialog has no import
- * button and no confirmation: the lists are merged automatically, and the run
- * shows up in the sync activity card.
+ * Asks the background sync to import right away. Lists are merged
+ * automatically, and the run shows up in the sync activity card. On top of
+ * that automatic sync the operator can also import a list, a selection, or
+ * everything by hand.
  */
 function requestSyncNow(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('colisflow:sync-now'))
@@ -25,6 +28,9 @@ function requestSyncNow(): void {
 
 export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, lang } = useI18n()
+  const importFromScanner = useStore((state) => state.importFromScanner)
+  const logSync = useStore((state) => state.logSync)
+  const toast = useToast()
 
   const [auth, setAuth] = useState<ScannerAuth | null>(null)
   const [email, setEmail] = useState('')
@@ -34,9 +40,14 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
   const [items, setItems] = useState<ScanDistributor[]>([])
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setSelected(new Set())
+      return
+    }
     setError(null)
     setAuth(getScannerAuth())
   }, [open])
@@ -50,6 +61,7 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
       .then((list) => {
         if (cancelled) return
         setItems(list)
+        setSelected(new Set())
         setError(null)
         // Import as soon as the Colis Scanner lists are known.
         requestSyncNow()
@@ -86,8 +98,57 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
   const disconnect = () => {
     signOutScanner()
     setItems([])
+    setSelected(new Set())
     setAuth(null)
     setError(null)
+  }
+
+  const toggleSelected = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const importable = items.filter((item) => item.codes.length)
+  const allSelected = importable.length > 0 && importable.every((item) => selected.has(item.id))
+
+  /**
+   * Manual import: pushes the chosen Colis Scanner lists into ColisFlow right
+   * away, on top of the automatic background sync.
+   */
+  const runImport = async (list: ScanDistributor[]) => {
+    const chosen = list.filter((item) => item.codes.length)
+    if (!chosen.length || importing) return
+    setImporting(true)
+    try {
+      const result = await importFromScanner(chosen)
+      logSync({
+        status: 'ok',
+        lists: chosen.length,
+        codes: chosen.reduce((sum, item) => sum + item.codes.length, 0),
+        added: result.added,
+        moved: result.moved,
+        names: result.names,
+      })
+      toast.push({
+        title: t('scanlink.doneTitle'),
+        message: t('scanlink.doneMsg', {
+          created: formatNumber(result.created, lang),
+          codes: formatNumber(result.added, lang),
+          moved: formatNumber(result.moved, lang),
+        }),
+        tone: 'success',
+        duration: 6500,
+      })
+      setSelected(new Set())
+    } catch {
+      toast.push({ title: t('scanlink.errImport'), tone: 'error' })
+    } finally {
+      setImporting(false)
+    }
   }
 
   const connectDisabled = connecting || !email.trim() || !password
@@ -183,20 +244,72 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
           {items.length === 0 ? (
             <EmptyState compact title={t('scanlink.empty')} text={t('scanlink.emptyText')} />
           ) : (
-            <div className="scan-list">
-              {items.map((item) => (
-                <div className="scan-row" key={item.id}>
-                  <div className="scan-row-copy">
-                    <span className="scan-row-name">{item.name}</span>
-                    <span className="scan-row-meta">
-                      {formatNumber(item.codes.length, lang)} {t('common.parcels')}
-                      {item.archived ? <Badge tone="muted">{t('scanlink.archived')}</Badge> : null}
-                      {item.date ? ` · ${formatDate(item.date, lang)}` : ''}
-                    </span>
+            <>
+              <div className="scan-toolbar">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void runImport(items)}
+                  disabled={importing || !importable.length}
+                >
+                  {importing ? <Spinner size={15} /> : <CloudDownload size={15} />}
+                  {importing ? t('scanlink.importing') : t('scanlink.importAll')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() =>
+                    void runImport(items.filter((item) => selected.has(item.id)))
+                  }
+                  disabled={importing || selected.size === 0}
+                >
+                  <Download size={15} />
+                  {t('scanlink.importSelected', { count: selected.size })}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={() =>
+                    setSelected(allSelected ? new Set() : new Set(importable.map((item) => item.id)))
+                  }
+                  disabled={importing || !importable.length}
+                >
+                  {allSelected ? t('dist.selectNone') : t('dist.selectAll')}
+                </button>
+              </div>
+
+              <div className="scan-list">
+                {items.map((item) => (
+                  <div className="scan-row" key={item.id}>
+                    <input
+                      type="checkbox"
+                      className="scan-row-check"
+                      checked={selected.has(item.id)}
+                      onChange={() => toggleSelected(item.id)}
+                      aria-label={item.name}
+                      disabled={!item.codes.length}
+                    />
+                    <div className="scan-row-copy">
+                      <span className="scan-row-name">{item.name}</span>
+                      <span className="scan-row-meta">
+                        {formatNumber(item.codes.length, lang)} {t('common.parcels')}
+                        {item.archived ? <Badge tone="muted">{t('scanlink.archived')}</Badge> : null}
+                        {item.date ? ` · ${formatDate(item.date, lang)}` : ''}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs scan-row-import"
+                      onClick={() => void runImport([item])}
+                      disabled={importing || !item.codes.length}
+                    >
+                      <Download size={13} />
+                      {t('scanlink.import')}
+                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </>
       )}

@@ -5485,6 +5485,31 @@ kbd {
   text-overflow: ellipsis;
 }
 
+.scan-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.scan-toolbar .btn:last-child {
+  margin-inline-start: auto;
+}
+
+.scan-row-check {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.scan-row-import {
+  flex: none;
+}
+
 /* ---------- Multi-code search ------------------------------------------ */
 .search-mode-row {
   display: flex;
