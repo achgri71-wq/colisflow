@@ -122,7 +122,7 @@ describe('importFromScanner — permanent routeur lists', () => {
   })
 })
 
-describe('importFromScanner — imported lists stay active', () => {
+describe('importFromScanner — archived lists stay archived', () => {
   beforeEach(() => {
     useStore.setState({ distributors: [], sessions: [], codes: [], events: [] })
   })
@@ -144,7 +144,7 @@ describe('importFromScanner — imported lists stay active', () => {
     expect(result.names).toContain('ANCIEN CLIENT')
   })
 
-  it('brings an archived list back under Active when it receives codes', async () => {
+  it('keeps a list archived in ColisFlow archived and ignores its codes', async () => {
     const archived: Distributor = {
       id: 'dist-old',
       name: 'ANCIEN',
@@ -155,12 +155,39 @@ describe('importFromScanner — imported lists stay active', () => {
     }
     useStore.setState({ distributors: [archived], codes: [], sessions: [] })
 
-    await useStore.getState().importFromScanner([
+    const result = await useStore.getState().importFromScanner([
       { id: 'sd-old', name: 'ANCIEN', codes: ['SENDIT200'], archived: true },
     ])
 
-    const restored = useStore.getState().distributors.find((entry) => entry.id === 'dist-old')
-    expect(restored?.archived).toBe(false)
+    const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-old')
+    expect(stored?.archived).toBe(true)
+    expect(stored?.archivedAt).toBe(NOW)
+    expect(useStore.getState().codes).toHaveLength(0)
+    expect(result.added).toBe(0)
+    expect(result.names).toEqual([])
+  })
+
+  it('prefers an active list over an archived one that shares its name', async () => {
+    const archived: Distributor = {
+      id: 'dist-arch',
+      name: 'MEME NOM',
+      createdAt: NOW,
+      updatedAt: NOW,
+      archived: true,
+      archivedAt: NOW,
+    }
+    const active = distributor('dist-active', 'MEME NOM')
+    useStore.setState({ distributors: [archived, active], codes: [], sessions: [] })
+
+    await useStore.getState().importFromScanner([
+      { id: 'sd-same', name: 'MEME NOM', codes: ['SENDIT210'], archived: false },
+    ])
+
+    const stored = useStore.getState().codes.find((entry) => entry.code === 'SENDIT210')
+    expect(stored?.distributorId).toBe(active.id)
+    expect(
+      useStore.getState().distributors.find((entry) => entry.id === 'dist-arch')?.archived,
+    ).toBe(true)
   })
 
   it('reports only the lists that actually received new codes', async () => {

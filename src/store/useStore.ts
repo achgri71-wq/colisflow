@@ -847,19 +847,26 @@ export const useStore = create<StoreState>((set, get) => {
               normalizeFixedName(entry.name) === nameKey,
           )
         }
-        // Prefer an already-created entry, then an active distributor, then any match.
-        distributor ??=
-          state.distributors.find(
-            (entry) => !entry.archived && entry.name.toLowerCase() === lower,
-          ) ?? state.distributors.find((entry) => entry.name.toLowerCase() === lower)
+        // Prefer an already-created entry, then an active distributor. A list
+        // archived in ColisFlow is left alone: the sync must never bring it
+        // back to Active, so its codes are skipped entirely.
+        distributor ??= state.distributors.find(
+          (entry) => !entry.archived && entry.name.toLowerCase() === lower,
+        )
+        if (!distributor) {
+          const archivedMatch = state.distributors.some(
+            (entry) => entry.archived && entry.name.toLowerCase() === lower,
+          )
+          if (archivedMatch) continue
+        }
         if (!distributor) {
           const created: Distributor = {
             id: uid('dist'),
             name,
             createdAt: item.date ?? now,
             updatedAt: now,
-            // Imported lists are always active: a list archived or deleted on
-            // the Colis Scanner side must still show up under Active here.
+            // A brand new list is active; a list the operator archived here is
+            // handled above and never recreated.
             archived: false,
           }
           distributor = created
@@ -953,10 +960,10 @@ export const useStore = create<StoreState>((set, get) => {
       for (const id of touched) {
         if (createdIds.has(id)) continue
         const entry = state.distributors.find((item) => item.id === id)
-        // Receiving codes always brings a list back under Active, even when it
-        // was archived before (imports used to inherit the scanner's flag).
-        if (entry) {
-          updatedExisting.push({ ...entry, updatedAt: now, archived: false, archivedAt: undefined })
+        // Only active lists are ever touched now; archived lists are skipped
+        // earlier, so their archived flag is preserved here.
+        if (entry && !entry.archived) {
+          updatedExisting.push({ ...entry, updatedAt: now })
         }
       }
       const updatedById = new Map(updatedExisting.map((entry) => [entry.id, entry]))
