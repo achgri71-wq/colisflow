@@ -2124,6 +2124,12 @@ kbd {
   -webkit-box-orient: vertical;
 }
 
+.activity-manual {
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .activity-time {
   font-size: 10px;
   color: var(--text-faint);

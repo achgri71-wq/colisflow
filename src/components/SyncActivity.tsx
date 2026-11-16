@@ -12,6 +12,7 @@ import {
 import { useI18n } from '../i18n'
 import type { TranslationKey } from '../i18n/dict'
 import { useStore } from '../store/useStore'
+import { orderSyncLog } from '../lib/syncLog'
 import { cx, formatDateTime, formatNumber, relativeTime } from '../lib/utils'
 import { Badge } from './ui'
 import type { SyncLogEntry, SyncStatus } from '../types'
@@ -57,6 +58,9 @@ export function SyncActivity() {
   const last = syncLog[0]
   const meta = last ? STATUS_META[last.status] : null
   const StatusIcon = meta?.icon ?? RefreshCw
+  // Manual imports stay on top of the feed so the automatic heartbeat never
+  // buries the run the operator started by hand.
+  const feed = orderSyncLog(syncLog)
 
   return (
     <section className={cx('card sync-card', open && 'is-open')}>
@@ -89,7 +93,7 @@ export function SyncActivity() {
       {open ? (
         syncLog.length ? (
           <div className="activity-feed sync-feed">
-            {syncLog.map((entry) => {
+            {feed.map((entry) => {
               const item = STATUS_META[entry.status]
               const Icon = item.icon
               return (
@@ -98,7 +102,14 @@ export function SyncActivity() {
                     <Icon size={15} />
                   </span>
                   <div className="activity-copy">
-                    <span className="activity-text">{entryText(entry)}</span>
+                    <span className="activity-text">
+                      {entryText(entry)}
+                      {entry.manual ? (
+                        <span className="activity-manual">
+                          <Badge tone="accent">{t('sync.manual')}</Badge>
+                        </span>
+                      ) : null}
+                    </span>
                     {entry.names && entry.names.length ? (
                       <span className="activity-names">{entry.names.join(' · ')}</span>
                     ) : null}

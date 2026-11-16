@@ -150,4 +150,6 @@ export interface SyncLogEntry {
   names?: string[]
   /** Translation key describing a failure. */
   message?: string
+  /** True when the operator started the run by hand from the Colis Scanner dialog. */
+  manual?: boolean
 }

@@ -43,9 +43,22 @@ function sameResult(a: SyncLogEntry, b: SyncLogEntry): boolean {
     a.codes === b.codes &&
     a.added === b.added &&
     a.moved === b.moved &&
+    Boolean(a.manual) === Boolean(b.manual) &&
     (a.names ?? []).join('\u0000') === (b.names ?? []).join('\u0000') &&
     (a.message ?? '') === (b.message ?? '')
   )
+}
+
+/**
+ * Feed order for the activity panel: runs started by hand come first, so the
+ * automatic heartbeat can never bury the manual import the operator just did.
+ * Inside each group the newest run stays on top.
+ */
+export function orderSyncLog(entries: SyncLogEntry[]): SyncLogEntry[] {
+  return [...entries].sort((a, b) => {
+    if (Boolean(a.manual) !== Boolean(b.manual)) return a.manual ? -1 : 1
+    return b.at.localeCompare(a.at)
+  })
 }
 
 /**

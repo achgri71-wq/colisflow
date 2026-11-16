@@ -1008,6 +1008,7 @@ export const useStore = create<StoreState>((set, get) => {
         moved: entry.moved,
         ...(entry.names && entry.names.length ? { names: entry.names } : {}),
         ...(entry.message ? { message: entry.message } : {}),
+        ...(entry.manual ? { manual: true } : {}),
       }
       const next = appendSyncLog(get().syncLog, full)
       set({ syncLog: next })

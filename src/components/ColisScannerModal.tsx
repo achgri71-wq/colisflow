@@ -132,6 +132,7 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
         added: result.added,
         moved: result.moved,
         names: result.names,
+        manual: true,
       })
       toast.push({
         title: t('scanlink.doneTitle'),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendSyncLog, SYNC_LOG_LIMIT } from './syncLog'
+import { appendSyncLog, orderSyncLog, SYNC_LOG_LIMIT } from './syncLog'
 import type { SyncLogEntry, SyncStatus } from '../types'
 
 function entry(at: string, patch: Partial<SyncLogEntry> = {}): SyncLogEntry {
@@ -57,5 +57,36 @@ describe('appendSyncLog', () => {
       log = appendSyncLog(log, entry(`2026-01-01T10:${String(index).padStart(2, '0')}:00.000Z`, { added: index }))
     }
     expect(log).toHaveLength(SYNC_LOG_LIMIT)
+  })
+
+  it('does not collapse an automatic heartbeat into a manual run', () => {
+    const manual = appendSyncLog([], entry('2026-01-01T10:00:00.000Z', { manual: true }))
+    const next = appendSyncLog(manual, entry('2026-01-01T10:05:00.000Z'))
+    expect(next).toHaveLength(2)
+    expect(next[0].manual).toBeUndefined()
+    expect(next[1].manual).toBe(true)
+  })
+})
+
+describe('orderSyncLog', () => {
+  it('shows manual runs before automatic ones, newest first in each group', () => {
+    const log = [
+      entry('2026-01-01T10:05:00.000Z'),
+      entry('2026-01-01T10:00:00.000Z', { manual: true }),
+      entry('2026-01-01T10:03:00.000Z'),
+      entry('2026-01-01T09:00:00.000Z', { manual: true }),
+    ]
+    expect(orderSyncLog(log).map((item) => item.at)).toEqual([
+      '2026-01-01T10:00:00.000Z',
+      '2026-01-01T09:00:00.000Z',
+      '2026-01-01T10:05:00.000Z',
+      '2026-01-01T10:03:00.000Z',
+    ])
+  })
+
+  it('does not mutate the stored log', () => {
+    const log = [entry('2026-01-01T10:05:00.000Z'), entry('2026-01-01T10:00:00.000Z', { manual: true })]
+    orderSyncLog(log)
+    expect(log[0].manual).toBeUndefined()
   })
 })
