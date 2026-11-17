@@ -823,6 +823,8 @@ export const useStore = create<StoreState>((set, get) => {
         (options?.touchNames ?? []).map((name) => name.trim().toLowerCase()),
       )
       const touchIds = new Set<string>()
+      // Lists the operator ticked that were archived: they come back to Active.
+      const restoreIds = new Set<string>()
       const importedNames = new Set<string>()
       let duplicates = 0
 
@@ -849,6 +851,9 @@ export const useStore = create<StoreState>((set, get) => {
         // creating a second ordinary list that Return Scanner Pro won't group
         // under Routeurs.
         const nameKey = fixedRouteur ? normalizeFixedName(name) : lower
+        // A list the operator ticked by hand is allowed to come back under
+        // Active; an automatic run never resurrects an archived list.
+        const ticked = manualTouch && touchNames.has(lower)
         let distributor = createdByName.get(nameKey)
         if (!distributor && fixedRouteur) {
           distributor = state.distributors.find(
@@ -857,17 +862,21 @@ export const useStore = create<StoreState>((set, get) => {
               normalizeFixedName(entry.name) === nameKey,
           )
         }
-        // Prefer an already-created entry, then an active distributor. A list
-        // archived in ColisFlow is left alone: the sync must never bring it
-        // back to Active, so its codes are skipped entirely.
+        // Prefer an already-created entry, then an active distributor.
         distributor ??= state.distributors.find(
           (entry) => !entry.archived && entry.name.toLowerCase() === lower,
         )
         if (!distributor) {
-          const archivedMatch = state.distributors.some(
+          const archivedEntry = state.distributors.find(
             (entry) => entry.archived && entry.name.toLowerCase() === lower,
           )
-          if (archivedMatch) continue
+          // A list archived in ColisFlow is left alone — its codes are skipped
+          // — unless the operator ticked it in the Colis Scanner dialog, in
+          // which case it is pulled back under Active.
+          if (archivedEntry) {
+            if (ticked) distributor = archivedEntry
+            else continue
+          }
         }
         if (!distributor) {
           const created: Distributor = {
@@ -884,10 +893,11 @@ export const useStore = create<StoreState>((set, get) => {
           createdByName.set(nameKey, created)
         }
 
-        // A manual import always brings the list to the top of the page, even
-        // when every code was already there.
-        if (manualTouch && !distributor.archived && touchNames.has(lower)) {
+        // A manual import always brings the ticked list to the top of the page,
+        // even when every code was already there.
+        if (ticked) {
           touchIds.add(distributor.id)
+          if (distributor.archived) restoreIds.add(distributor.id)
         }
 
         const sessionId = uid('sess')
@@ -973,9 +983,17 @@ export const useStore = create<StoreState>((set, get) => {
       for (const id of bumpedIds) {
         if (createdIds.has(id)) continue
         const entry = state.distributors.find((item) => item.id === id)
-        // Only active lists are ever touched; archived lists are skipped
-        // earlier, so their archived flag is preserved here.
-        if (entry && !entry.archived) {
+        if (!entry) continue
+        // A ticked archived list is pulled back to Active; any other archived
+        // list is skipped so the sync never resurrects it.
+        if (restoreIds.has(id)) {
+          updatedExisting.push({
+            ...entry,
+            archived: false,
+            archivedAt: undefined,
+            updatedAt: now,
+          })
+        } else if (!entry.archived) {
           updatedExisting.push({ ...entry, updatedAt: now })
         }
       }

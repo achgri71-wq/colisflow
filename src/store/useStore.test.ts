@@ -284,7 +284,7 @@ describe('importFromScanner — manual touch', () => {
     expect(stored?.updatedAt).toBe(OLD)
   })
 
-  it('never brings an archived list forward', async () => {
+  it('restores a ticked archived list to Active', async () => {
     const archived: Distributor = {
       id: 'dist-arch',
       name: 'ANCIEN',
@@ -302,7 +302,54 @@ describe('importFromScanner — manual touch', () => {
       })
 
     const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-arch')
+    expect(stored?.archived).toBe(false)
+    expect(stored?.archivedAt).toBeUndefined()
+    expect(stored?.updatedAt).not.toBe(OLD)
+    expect(useStore.getState().codes).toHaveLength(1)
+  })
+
+  it('never restores an archived list that was not ticked', async () => {
+    const archived: Distributor = {
+      id: 'dist-arch',
+      name: 'ANCIEN',
+      createdAt: NOW,
+      updatedAt: OLD,
+      archived: true,
+      archivedAt: NOW,
+    }
+    useStore.setState({ distributors: [archived], codes: [], sessions: [] })
+
+    await useStore
+      .getState()
+      .importFromScanner([{ id: 'sd-arch', name: 'ANCIEN', codes: ['SENDIT9'], archived: true }], {
+        touchNames: [],
+      })
+
+    const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-arch')
     expect(stored?.updatedAt).toBe(OLD)
     expect(stored?.archived).toBe(true)
+    expect(stored?.archivedAt).toBe(NOW)
+    expect(useStore.getState().codes).toHaveLength(0)
+  })
+
+  it('never restores an archived list during an automatic import', async () => {
+    const archived: Distributor = {
+      id: 'dist-arch',
+      name: 'ANCIEN',
+      createdAt: NOW,
+      updatedAt: OLD,
+      archived: true,
+      archivedAt: NOW,
+    }
+    useStore.setState({ distributors: [archived], codes: [], sessions: [] })
+
+    await useStore
+      .getState()
+      .importFromScanner([{ id: 'sd-arch', name: 'ANCIEN', codes: ['SENDIT9'], archived: true }])
+
+    const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-arch')
+    expect(stored?.updatedAt).toBe(OLD)
+    expect(stored?.archived).toBe(true)
+    expect(useStore.getState().codes).toHaveLength(0)
   })
 })
