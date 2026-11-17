@@ -93,4 +93,13 @@ describe('buildFlowPayload', () => {
     )
     expect(payload.distributors[0]).not.toHaveProperty('phone')
   })
+
+  it('leaves the since slot empty when a code was never moved', () => {
+    const payload = buildFlowPayload(
+      [{ id: 'd1', name: 'Rachid', updatedAt: '2026-11-14T00:00:00.000Z', archived: false }],
+      [{ code: 'A1', distributorId: 'd1', scannedAt: '2026-11-10T08:00:00.000Z' }],
+    )
+    expect(payload.distributors[0].dates).toEqual(['2026-11-10T08:00:00.000Z'])
+    expect(payload.distributors[0].since).toEqual([''])
+  })
 })

@@ -314,7 +314,10 @@ export function buildFlowPayload(
         ...(entry.phone ? { phone: entry.phone } : {}),
         codes: Array.from(seen.keys()),
         dates: values.map((value) => value.at),
-        since: values.map((value) => value.since),
+        // The move date only matters when it differs from the first scan date;
+        // an empty slot there (RSP falls back to the scan date) keeps the public
+        // snapshot about a third smaller.
+        since: values.map((value) => (value.since === value.at ? '' : value.since)),
         date: entry.updatedAt,
         archived: entry.archived,
         // Lets Return Scanner Pro recognise a routeur list even when the
