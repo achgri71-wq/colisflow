@@ -26,7 +26,9 @@ export function DistributorsPage() {
   const prefixes = useStore((state) => state.settings.senditPrefixes)
   const actions = useDistributorActions()
 
-  const [filter, setFilter] = useState<Filter>('all')
+  // The active lists are what the operator works with day to day, so the page
+  // opens on "Actifs" instead of the full (archived included) list.
+  const [filter, setFilter] = useState<Filter>('active')
   const [query, setQuery] = useState('')
   const [startOpen, setStartOpen] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
@@ -296,7 +298,7 @@ export function DistributorsPage() {
                   className="btn btn-secondary btn-sm"
                   onClick={() => {
                     setQuery('')
-                    setFilter('all')
+                    setFilter('active')
                   }}
                 >
                   <X size={15} />
