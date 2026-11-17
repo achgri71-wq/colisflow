@@ -66,6 +66,14 @@ describe('appendSyncLog', () => {
     expect(next[0].manual).toBeUndefined()
     expect(next[1].manual).toBe(true)
   })
+
+  it('keeps every manual run as its own row, even when it repeats', () => {
+    const first = appendSyncLog([], entry('2026-01-01T10:00:00.000Z', { manual: true }))
+    const second = appendSyncLog(first, entry('2026-01-01T10:05:00.000Z', { manual: true }))
+    expect(second).toHaveLength(2)
+    expect(second[0].at).toBe('2026-01-01T10:05:00.000Z')
+    expect(second[1].at).toBe('2026-01-01T10:00:00.000Z')
+  })
 })
 
 describe('orderSyncLog', () => {

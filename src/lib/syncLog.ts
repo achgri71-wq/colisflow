@@ -66,10 +66,15 @@ export function orderSyncLog(entries: SyncLogEntry[]): SyncLogEntry[] {
  * idle "no account" state checked every few minutes — collapse into a single
  * entry whose timestamp is refreshed, so the history stays readable instead of
  * being flooded by heartbeat lines.
+ *
+ * Manual runs are the exception: every import the operator starts by hand gets
+ * its own row, even when it repeats an earlier one, so the action they just
+ * pressed always shows up first instead of being merged into the previous line.
  */
 export function appendSyncLog(entries: SyncLogEntry[], entry: SyncLogEntry): SyncLogEntry[] {
+  if (entry.manual) return [entry, ...entries].slice(0, SYNC_LOG_LIMIT)
   const [newest, ...rest] = entries
-  if (newest && sameResult(newest, entry)) {
+  if (newest && !newest.manual && sameResult(newest, entry)) {
     return [{ ...newest, at: entry.at }, ...rest].slice(0, SYNC_LOG_LIMIT)
   }
   return [entry, ...entries].slice(0, SYNC_LOG_LIMIT)
