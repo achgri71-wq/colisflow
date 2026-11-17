@@ -148,7 +148,7 @@ interface StoreState extends AllData {
   restoreDistributorSnapshot: (snapshot: DistributorSnapshot) => Promise<void>
   importFromScanner: (
     items: ScanDistributor[],
-    options?: { touch?: boolean },
+    options?: { touchNames?: string[] },
   ) => Promise<ScannerImportResult>
   /** Records one Colis Scanner → ColisFlow sync run for the activity panel. */
   logSync: (entry: Omit<SyncLogEntry, 'id' | 'at'> & { at?: string }) => void
@@ -816,8 +816,12 @@ export const useStore = create<StoreState>((set, get) => {
       const newCodes: ScanCode[] = []
       const removedIds = new Set<string>()
       const touched = new Set<string>()
-      // Lists the operator imported by hand: they jump to the top of the list
-      // page even when no new code was added, so the manual run is visible.
+      // A manual import only brings forward the lists the operator ticked: the
+      // others keep their place even when this run added codes to them.
+      const manualTouch = options?.touchNames !== undefined
+      const touchNames = new Set(
+        (options?.touchNames ?? []).map((name) => name.trim().toLowerCase()),
+      )
       const touchIds = new Set<string>()
       const importedNames = new Set<string>()
       let duplicates = 0
@@ -882,7 +886,9 @@ export const useStore = create<StoreState>((set, get) => {
 
         // A manual import always brings the list to the top of the page, even
         // when every code was already there.
-        if (options?.touch && !distributor.archived) touchIds.add(distributor.id)
+        if (manualTouch && !distributor.archived && touchNames.has(lower)) {
+          touchIds.add(distributor.id)
+        }
 
         const sessionId = uid('sess')
         const startedAt = item.date ?? now
@@ -962,7 +968,7 @@ export const useStore = create<StoreState>((set, get) => {
       const sessions = newSessions.filter((session) => sessionIds.has(session.id))
 
       const createdIds = new Set(createdDistributors.map((entry) => entry.id))
-      const bumpedIds = options?.touch ? new Set([...touched, ...touchIds]) : touched
+      const bumpedIds = manualTouch ? touchIds : touched
       const updatedExisting: Distributor[] = []
       for (const id of bumpedIds) {
         if (createdIds.has(id)) continue

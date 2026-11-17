@@ -207,7 +207,7 @@ describe('importFromScanner — manual touch', () => {
     useStore.setState({ distributors: [], sessions: [], codes: [], events: [] })
   })
 
-  it('brings a manually imported list to the top even when nothing is new', async () => {
+  it('brings a ticked list to the top even when nothing is new', async () => {
     const list = distributor('dist-a', 'LIVREUR A')
     list.updatedAt = OLD
     useStore.setState({
@@ -220,13 +220,51 @@ describe('importFromScanner — manual touch', () => {
       .getState()
       .importFromScanner(
         [{ id: 'sd-a', name: 'LIVREUR A', codes: ['SENDIT1'], archived: false }],
-        { touch: true },
+        { touchNames: ['LIVREUR A'] },
       )
 
     expect(result.added).toBe(0)
     const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-a')
     expect(stored?.updatedAt).not.toBe(OLD)
     expect(stored?.updatedAt.localeCompare(OLD)).toBeGreaterThan(0)
+  })
+
+  it('leaves a list that was not ticked in place, even when it receives codes', async () => {
+    const list = distributor('dist-a', 'LIVREUR A')
+    list.updatedAt = OLD
+    useStore.setState({ distributors: [list], codes: [], sessions: [] })
+
+    await useStore
+      .getState()
+      .importFromScanner(
+        [{ id: 'sd-a', name: 'LIVREUR A', codes: ['SENDIT1'], archived: false }],
+        { touchNames: [] },
+      )
+
+    const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-a')
+    expect(stored?.updatedAt).toBe(OLD)
+    expect(useStore.getState().codes).toHaveLength(1)
+  })
+
+  it('only brings forward the lists named in touchNames', async () => {
+    const a = distributor('dist-a', 'LIVREUR A')
+    const b = distributor('dist-b', 'LIVREUR B')
+    a.updatedAt = OLD
+    b.updatedAt = OLD
+    useStore.setState({ distributors: [a, b], codes: [], sessions: [] })
+
+    await useStore.getState().importFromScanner(
+      [
+        { id: 'sd-a', name: 'LIVREUR A', codes: ['SENDIT1'], archived: false },
+        { id: 'sd-b', name: 'LIVREUR B', codes: ['SENDIT2'], archived: false },
+      ],
+      { touchNames: ['LIVREUR B'] },
+    )
+
+    const storedA = useStore.getState().distributors.find((entry) => entry.id === 'dist-a')
+    const storedB = useStore.getState().distributors.find((entry) => entry.id === 'dist-b')
+    expect(storedA?.updatedAt).toBe(OLD)
+    expect(storedB?.updatedAt).not.toBe(OLD)
   })
 
   it('leaves the timestamp alone during an automatic import', async () => {
@@ -260,7 +298,7 @@ describe('importFromScanner — manual touch', () => {
     await useStore
       .getState()
       .importFromScanner([{ id: 'sd-arch', name: 'ANCIEN', codes: ['SENDIT9'], archived: true }], {
-        touch: true,
+        touchNames: ['ANCIEN'],
       })
 
     const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-arch')

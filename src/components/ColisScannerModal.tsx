@@ -117,14 +117,20 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
 
   /**
    * Manual import: pushes the chosen Colis Scanner lists into ColisFlow right
-   * away, on top of the automatic background sync.
+   * away, on top of the automatic background sync. Only the lists the operator
+   * ticked are brought to the top of the page; `touch: 'all'` is used when the
+   * chosen lists are already the target (the selection, or a single row).
    */
-  const runImport = async (list: ScanDistributor[]) => {
+  const runImport = async (list: ScanDistributor[], options?: { touch?: 'checked' | 'all' }) => {
     const chosen = list.filter((item) => item.codes.length)
     if (!chosen.length || importing) return
     setImporting(true)
     try {
-      const result = await importFromScanner(chosen, { touch: true })
+      const touchNames =
+        options?.touch === 'all'
+          ? chosen.map((item) => item.name)
+          : chosen.filter((item) => selected.has(item.id)).map((item) => item.name)
+      const result = await importFromScanner(chosen, { touchNames })
       logSync({
         status: 'ok',
         lists: chosen.length,
@@ -260,7 +266,10 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() =>
-                    void runImport(items.filter((item) => selected.has(item.id)))
+                    void runImport(
+                      items.filter((item) => selected.has(item.id)),
+                      { touch: 'all' },
+                    )
                   }
                   disabled={importing || selected.size === 0}
                 >
@@ -301,7 +310,7 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
                     <button
                       type="button"
                       className="btn btn-secondary btn-xs scan-row-import"
-                      onClick={() => void runImport([item])}
+                      onClick={() => void runImport([item], { touch: 'all' })}
                       disabled={importing || !item.codes.length}
                     >
                       <Download size={13} />
