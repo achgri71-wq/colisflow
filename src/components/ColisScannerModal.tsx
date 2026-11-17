@@ -124,7 +124,7 @@ export function ColisScannerModal({ open, onClose }: { open: boolean; onClose: (
     if (!chosen.length || importing) return
     setImporting(true)
     try {
-      const result = await importFromScanner(chosen)
+      const result = await importFromScanner(chosen, { touch: true })
       logSync({
         status: 'ok',
         lists: chosen.length,

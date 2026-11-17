@@ -199,3 +199,72 @@ describe('importFromScanner — archived lists stay archived', () => {
     expect(result.names).toEqual(['LIVREUR A'])
   })
 })
+
+describe('importFromScanner — manual touch', () => {
+  const OLD = '2020-01-01T00:00:00.000Z'
+
+  beforeEach(() => {
+    useStore.setState({ distributors: [], sessions: [], codes: [], events: [] })
+  })
+
+  it('brings a manually imported list to the top even when nothing is new', async () => {
+    const list = distributor('dist-a', 'LIVREUR A')
+    list.updatedAt = OLD
+    useStore.setState({
+      distributors: [list],
+      codes: [code('code-1', 'SENDIT1', list.id)],
+      sessions: [],
+    })
+
+    const result = await useStore
+      .getState()
+      .importFromScanner(
+        [{ id: 'sd-a', name: 'LIVREUR A', codes: ['SENDIT1'], archived: false }],
+        { touch: true },
+      )
+
+    expect(result.added).toBe(0)
+    const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-a')
+    expect(stored?.updatedAt).not.toBe(OLD)
+    expect(stored?.updatedAt.localeCompare(OLD)).toBeGreaterThan(0)
+  })
+
+  it('leaves the timestamp alone during an automatic import', async () => {
+    const list = distributor('dist-a', 'LIVREUR A')
+    list.updatedAt = OLD
+    useStore.setState({
+      distributors: [list],
+      codes: [code('code-1', 'SENDIT1', list.id)],
+      sessions: [],
+    })
+
+    await useStore
+      .getState()
+      .importFromScanner([{ id: 'sd-a', name: 'LIVREUR A', codes: ['SENDIT1'], archived: false }])
+
+    const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-a')
+    expect(stored?.updatedAt).toBe(OLD)
+  })
+
+  it('never brings an archived list forward', async () => {
+    const archived: Distributor = {
+      id: 'dist-arch',
+      name: 'ANCIEN',
+      createdAt: NOW,
+      updatedAt: OLD,
+      archived: true,
+      archivedAt: NOW,
+    }
+    useStore.setState({ distributors: [archived], codes: [], sessions: [] })
+
+    await useStore
+      .getState()
+      .importFromScanner([{ id: 'sd-arch', name: 'ANCIEN', codes: ['SENDIT9'], archived: true }], {
+        touch: true,
+      })
+
+    const stored = useStore.getState().distributors.find((entry) => entry.id === 'dist-arch')
+    expect(stored?.updatedAt).toBe(OLD)
+    expect(stored?.archived).toBe(true)
+  })
+})

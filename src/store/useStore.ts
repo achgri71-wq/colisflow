@@ -146,7 +146,10 @@ interface StoreState extends AllData {
   restoreDistributor: (id: string) => Promise<void>
   deleteDistributor: (id: string) => Promise<DistributorSnapshot | null>
   restoreDistributorSnapshot: (snapshot: DistributorSnapshot) => Promise<void>
-  importFromScanner: (items: ScanDistributor[]) => Promise<ScannerImportResult>
+  importFromScanner: (
+    items: ScanDistributor[],
+    options?: { touch?: boolean },
+  ) => Promise<ScannerImportResult>
   /** Records one Colis Scanner → ColisFlow sync run for the activity panel. */
   logSync: (entry: Omit<SyncLogEntry, 'id' | 'at'> & { at?: string }) => void
   setSettings: (patch: Partial<Settings>) => void
@@ -804,7 +807,7 @@ export const useStore = create<StoreState>((set, get) => {
       await db.putCodes(snapshot.codes)
     },
 
-    importFromScanner: async (items) => {
+    importFromScanner: async (items, options) => {
       const state = get()
       const now = new Date().toISOString()
 
@@ -813,6 +816,9 @@ export const useStore = create<StoreState>((set, get) => {
       const newCodes: ScanCode[] = []
       const removedIds = new Set<string>()
       const touched = new Set<string>()
+      // Lists the operator imported by hand: they jump to the top of the list
+      // page even when no new code was added, so the manual run is visible.
+      const touchIds = new Set<string>()
       const importedNames = new Set<string>()
       let duplicates = 0
 
@@ -873,6 +879,10 @@ export const useStore = create<StoreState>((set, get) => {
           createdDistributors.push(created)
           createdByName.set(nameKey, created)
         }
+
+        // A manual import always brings the list to the top of the page, even
+        // when every code was already there.
+        if (options?.touch && !distributor.archived) touchIds.add(distributor.id)
 
         const sessionId = uid('sess')
         const startedAt = item.date ?? now
@@ -945,10 +955,6 @@ export const useStore = create<StoreState>((set, get) => {
         }
       }
 
-      if (!newCodes.length) {
-        return { created: 0, updated: 0, added: 0, moved: 0, duplicates, names: [] }
-      }
-
       // A code can be re-imported under another distributor within the same
       // batch; the superseded freshly-created records must not be inserted.
       const added = newCodes.filter((record) => !removedIds.has(record.id))
@@ -956,16 +962,23 @@ export const useStore = create<StoreState>((set, get) => {
       const sessions = newSessions.filter((session) => sessionIds.has(session.id))
 
       const createdIds = new Set(createdDistributors.map((entry) => entry.id))
+      const bumpedIds = options?.touch ? new Set([...touched, ...touchIds]) : touched
       const updatedExisting: Distributor[] = []
-      for (const id of touched) {
+      for (const id of bumpedIds) {
         if (createdIds.has(id)) continue
         const entry = state.distributors.find((item) => item.id === id)
-        // Only active lists are ever touched now; archived lists are skipped
+        // Only active lists are ever touched; archived lists are skipped
         // earlier, so their archived flag is preserved here.
         if (entry && !entry.archived) {
           updatedExisting.push({ ...entry, updatedAt: now })
         }
       }
+
+      // Nothing new and nothing to bring forward: leave the store untouched.
+      if (!added.length && !updatedExisting.length && !createdDistributors.length) {
+        return { created: 0, updated: 0, added: 0, moved: 0, duplicates, names: [] }
+      }
+
       const updatedById = new Map(updatedExisting.map((entry) => [entry.id, entry]))
 
       set((current) => ({
@@ -973,19 +986,22 @@ export const useStore = create<StoreState>((set, get) => {
           ...current.distributors.map((entry) => updatedById.get(entry.id) ?? entry),
           ...createdDistributors,
         ],
-        sessions: [...current.sessions, ...sessions],
-        codes: [...current.codes.filter((record) => !removedIds.has(record.id)), ...added],
+        sessions: sessions.length ? [...current.sessions, ...sessions] : current.sessions,
+        codes:
+          added.length || removedIds.size
+            ? [...current.codes.filter((record) => !removedIds.has(record.id)), ...added]
+            : current.codes,
       }))
 
       await Promise.all([
         ...createdDistributors.map((entry) => db.putDistributor(entry)),
         ...updatedExisting.map((entry) => db.putDistributor(entry)),
         ...sessions.map((session) => db.putSession(session)),
-        db.putCodes(added),
+        ...(added.length ? [db.putCodes(added)] : []),
       ])
       if (removedIds.size) await db.deleteCodeRecords(Array.from(removedIds))
 
-      logEvent('import', 'Colis Scanner', String(added.length))
+      if (added.length) logEvent('import', 'Colis Scanner', String(added.length))
 
       return {
         created: createdDistributors.length,
